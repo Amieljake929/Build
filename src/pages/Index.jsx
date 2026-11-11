@@ -1,185 +1,165 @@
-import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import PageTransition from '../components/PageTransition'
-import { NAME, NAME_KO, ROLES } from '../data/site'
+import { USERNAME, X_URL, ROLES, BIO, FACTS, EMAIL, NOTES, POSTS } from '../data/site'
 
 const ease = [0.22, 1, 0.36, 1]
-const ROLE_INTERVAL = 3200 // ms each role stays on screen
-const SWAP_DELAY = 80 // ms into the glitch when the text actually changes
-const GLITCH_INTERVAL = 15000 // ms between automatic glitches
 
-const toChars = (text) => [...text.toUpperCase()]
-const glyph = (char) => (char === ' ' ? '\u00A0' : char)
-const NAME_CHARS = toChars(NAME) // also used as an invisible sizer, see below
-
+// Parent: reveals its children one after another
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.2 } },
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.1 } },
 }
 
-const letter = {
-  hidden: { opacity: 0, y: '0.35em', filter: 'blur(6px)' },
-  show: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.9, ease },
-  },
+// Each block fades in, rises and un-blurs
+const item = {
+  hidden: { opacity: 0, y: 18, filter: 'blur(4px)' },
+  show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.8, ease } },
 }
 
-// The visible name. Letters reveal one by one on first load (animated),
-// then switch to plain letters once the name has changed language.
-function Letters({ chars, animated }) {
-  if (animated) {
-    return (
-      <motion.span
-        className="glitch-base inline-block"
-        aria-hidden="true"
+// Lists inside the right column reveal their rows with a smaller delay
+const list = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+}
+
+const row = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
+}
+
+export default function Index() {
+  const snippets = POSTS.slice(0, 3)
+
+  // Status is hidden on this page only (it still exists in site.js).
+  const facts = FACTS.filter((fact) => fact.label !== 'Status')
+
+  return (
+    <PageTransition>
+      {/* zoom: 0.9 makes this page look like 90% scale at normal browser zoom.
+          The Header is outside this section, so it keeps its size. */}
+      <motion.section
+        className="grid w-full gap-16 pt-6 pb-10 [zoom:0.9] lg:grid-cols-2 lg:gap-24 lg:pt-10"
         variants={container}
         initial="hidden"
         animate="show"
       >
-        {chars.map((char, i) => (
-          <motion.span
-            key={i}
-            className="inline-block whitespace-pre will-change-[transform,opacity,filter]"
-            variants={letter}
+        {/* ---------- Left: intro + details ---------- */}
+        <motion.div className="min-w-0" variants={container}>
+          <motion.h1
+            variants={item}
+            className="text-[length:clamp(1.75rem,1.3rem_+_1.4vw,2.5rem)] font-light tracking-[0.01em]"
           >
-            {glyph(char)}
-          </motion.span>
-        ))}
-      </motion.span>
-    )
-  }
+            {/* Opens my X (Twitter) account in a new tab */}
+            <a
+              href={X_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors duration-400 ease-soft hover:text-accent"
+            >
+              {USERNAME}
+            </a>
+          </motion.h1>
+          <motion.p variants={item} className="ui-label mt-4 text-muted">
+            {ROLES.join('  /  ')}
+          </motion.p>
 
-  return (
-    <span className="glitch-base inline-block" aria-hidden="true">
-      {chars.map((char, i) => (
-        <span key={i} className="inline-block whitespace-pre">
-          {glyph(char)}
-        </span>
-      ))}
-    </span>
-  )
-}
+          <motion.span
+            variants={item}
+            className="my-8 block h-px w-10 bg-accent"
+            aria-hidden="true"
+          />
 
-// A copy of the name used for the glitch colors. Styles live in index.css.
-function GlitchLayer({ tone, chars }) {
-  return (
-    <span className={`glitch-layer glitch-${tone}`} aria-hidden="true">
-      {chars.map((char, i) => (
-        <span key={i} className="inline-block whitespace-pre">
-          {glyph(char)}
-        </span>
-      ))}
-    </span>
-  )
-}
+          <motion.div
+            variants={item}
+            className="max-w-[32rem] space-y-4 leading-[1.85] tracking-[0.02em] text-muted no-underline"
+          >
+            {BIO.map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+          </motion.div>
 
-export default function Index() {
-  const [roleIndex, setRoleIndex] = useState(0)
-  const [lang, setLang] = useState('en') // 'en' | 'ko'
-  const [glitching, setGlitching] = useState(false)
-  const [touched, setTouched] = useState(false)
-  const swapTimer = useRef(null)
+          {/* Based in, Email */}
+          <motion.dl
+            variants={item}
+            className="mt-10 grid max-w-[32rem] gap-3 border-t border-line pt-6 text-sm"
+          >
+            {facts.map((fact) => (
+              <div key={fact.label} className="grid grid-cols-[6rem_1fr] gap-4">
+                <dt className="ui-label self-center text-muted">{fact.label}</dt>
+                <dd className="tracking-[0.02em] text-fg">{fact.value}</dd>
+              </div>
+            ))}
+            <div className="grid grid-cols-[6rem_1fr] gap-4">
+              <dt className="ui-label self-center text-muted">Email</dt>
+              <dd>
+                <a href={`mailto:${EMAIL}`} className="link-line tracking-[0.02em] text-fg">
+                  {EMAIL}
+                </a>
+              </dd>
+            </div>
+          </motion.dl>
+        </motion.div>
 
-  useEffect(() => {
-    const id = setInterval(() => setRoleIndex((i) => (i + 1) % ROLES.length), ROLE_INTERVAL)
-    return () => clearInterval(id)
-  }, [])
+        {/* ---------- Right: notes + blog ---------- */}
+        <motion.div className="min-w-0 space-y-14" variants={container}>
+          {/* Notes: two columns, square bullets, each links to its own page */}
+          <motion.section variants={item}>
+            <h2 className="mb-6 text-xl font-medium text-fg">Notes</h2>
+            <motion.ul className="gap-x-10 sm:columns-2" variants={list}>
+              {NOTES.map((note) => (
+                <motion.li
+                  key={note.slug}
+                  variants={row}
+                  className="mb-3.5 break-inside-avoid"
+                >
+                  <Link
+                    to={`/notes/${note.slug}`}
+                    className="group flex items-baseline gap-3 text-muted transition-colors duration-400 ease-soft hover:text-fg"
+                  >
+                    <span
+                      className="size-1.5 shrink-0 -translate-y-px bg-muted/60 transition-colors duration-400 group-hover:bg-accent"
+                      aria-hidden="true"
+                    />
+                    <span>{note.title}</span>
+                  </Link>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </motion.section>
 
-  useEffect(() => () => clearTimeout(swapTimer.current), [])
+          {/* Blog: latest 3, each opens its own post */}
+          <motion.section variants={item}>
+            <h2 className="mb-6 text-xl font-medium text-fg">Blog</h2>
+            <motion.ul className="space-y-6" variants={list}>
+              {snippets.map((post) => (
+                <motion.li key={post.slug} variants={row}>
+                  <Link to={`/blog/${post.slug}`} className="group block">
+                    <span className="flex items-baseline justify-between gap-4">
+                      <span className="text-fg transition-colors duration-400 ease-soft group-hover:text-accent">
+                        {post.title}
+                      </span>
+                      <span className="shrink-0 text-xs tracking-[0.08em] text-muted">
+                        {post.meta}
+                      </span>
+                    </span>
+                    <span className="mt-2 line-clamp-2 block text-sm leading-[1.7] tracking-[0.02em] text-muted">
+                      {post.excerpt}
+                    </span>
+                  </Link>
+                </motion.li>
+              ))}
+            </motion.ul>
 
-  // Automatic glitch every 15 seconds (the text stays as it is)
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const id = setInterval(() => setGlitching(true), GLITCH_INTERVAL)
-    return () => clearInterval(id)
-  }, [])
-
-  // Glitch, and change the text a moment in so the swap hides inside the burst
-  const switchTo = (next) => {
-    clearTimeout(swapTimer.current)
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduceMotion) {
-      setTouched(true)
-      setLang(next)
-      return
-    }
-    setGlitching(true)
-    swapTimer.current = setTimeout(() => {
-      setTouched(true)
-      setLang(next)
-    }, SWAP_DELAY)
-  }
-
-  const endGlitch = (e) => {
-    if (e.animationName === 'glitch-base') setGlitching(false)
-  }
-
-  // Mouse/pen: hover. Touch: tap to toggle (touch has no real hover).
-  const onEnter = (e) => e.pointerType !== 'touch' && switchTo('ko')
-  const onLeave = (e) => e.pointerType !== 'touch' && switchTo('en')
-  const onUp = (e) => e.pointerType === 'touch' && switchTo(lang === 'en' ? 'ko' : 'en')
-
-  const text = lang === 'ko' ? NAME_KO : NAME
-  const chars = toChars(text)
-
-  return (
-    <PageTransition>
-      <div className="text-center">
-        {/* ps-[0.4em] cancels the trailing letter-spacing so the text is truly centered */}
-        <h1
-          className={`relative ps-[0.4em] text-[length:clamp(1.35rem,1rem_+_2.2vw,2.25rem)] leading-[1.2] font-light tracking-brand${
-            glitching ? ' glitching' : ''
-          }`}
-          lang={lang}
-          aria-label={text}
-          onPointerEnter={onEnter}
-          onPointerLeave={onLeave}
-          onPointerUp={onUp}
-          onAnimationEnd={endGlitch}
-        >
-          {/* Invisible English copy: keeps the hover area the same size in both languages */}
-          <span className="invisible block h-0 overflow-hidden whitespace-nowrap" aria-hidden="true">
-            {NAME_CHARS.map(glyph).join('')}
-          </span>
-
-          <span className="glitch-flash" aria-hidden="true" />
-
-          <Letters chars={chars} animated={!touched} />
-
-          {/* Glitch layers: invisible until the name changes */}
-          <GlitchLayer tone="blood" chars={chars} />
-          <GlitchLayer tone="dried" chars={chars} />
-          <GlitchLayer tone="crimson" chars={chars} />
-          <GlitchLayer tone="ember" chars={chars} />
-        </h1>
-
-        <motion.p
-          className="mt-6 ps-[0.4em] text-[length:clamp(0.75rem,0.65rem_+_0.5vw,1rem)] font-light tracking-brand text-muted uppercase"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.4, delay: 1.1, ease }}
-        >
-          {/* Screen readers get the full list once instead of every swap */}
-          <span className="sr-only">{ROLES.join(' and ')}</span>
-          <span className="inline-block" aria-hidden="true">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={ROLES[roleIndex]}
-                className="inline-block"
-                initial={{ opacity: 0, y: '0.5em', filter: 'blur(4px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: '-0.5em', filter: 'blur(4px)' }}
-                transition={{ duration: 0.6, ease }}
-              >
-                {ROLES[roleIndex]}
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        </motion.p>
-      </div>
+            <Link
+              to="/blog"
+              className="link-line mt-8 inline-block text-sm tracking-[0.02em] text-muted hover:text-fg"
+            >
+              All posts →
+            </Link>
+          </motion.section>
+        </motion.div>
+      </motion.section>
     </PageTransition>
   )
 }

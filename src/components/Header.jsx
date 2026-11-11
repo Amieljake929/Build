@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import ThemeToggle from './ThemeToggle'
-import { NAV_LINKS, LOCATION } from '../data/site'
+import { NAV_LINKS, RESUME_URL } from '../data/site'
 
 const ease = [0.22, 1, 0.36, 1]
 
@@ -15,10 +14,25 @@ const menuLinkClass = ({ isActive }) =>
 const lineBase =
   'absolute left-2 h-px bg-fg transition-[translate,rotate,width] duration-500 ease-soft'
 
+// Opens public/Amiel-Jake-Baril.pdf in a new tab
+function ResumeLink() {
+  return (
+    <a
+      className="ui-label link-line py-2 text-muted hover:text-fg"
+      href={RESUME_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Resume
+    </a>
+  )
+}
+
 export default function Header() {
   const [open, setOpen] = useState(false)
 
-  // Lock page scroll and allow Escape to close while the sidebar is open
+  // Lock page scroll and allow Escape to close while the sidebar is open.
+  // (index.css reserves the scrollbar gutter so the page does not shift.)
   useEffect(() => {
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && setOpen(false)
@@ -60,12 +74,9 @@ export default function Header() {
         />
       </button>
 
-      <div className="relative z-0 hidden items-center gap-3.5 sm:flex">
-        <ThemeToggle />
-        <span className="ui-label select-none text-line" aria-hidden="true">
-          |
-        </span>
-        <span className="ui-label text-muted">{LOCATION}</span>
+      {/* Resume: same row as the menu button on every screen size */}
+      <div className="relative z-0 flex items-center">
+        <ResumeLink />
       </div>
 
       <AnimatePresence>
@@ -93,51 +104,37 @@ export default function Header() {
               transition={{ duration: 0.7, ease }}
             >
               <div className="my-auto flex flex-col items-start gap-10">
-              <nav className="flex flex-col items-start gap-6" aria-label="Primary">
-                {NAV_LINKS.map((link, i) => (
-                  <motion.div
-                    key={link.to}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{
-                      opacity: 1,
-                      x: 0,
-                      transition: { duration: 0.6, delay: 0.25 + i * 0.07, ease },
-                    }}
-                    exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                  >
-                    <NavLink
-                      to={link.to}
-                      end={link.to === '/'}
-                      className={menuLinkClass}
-                      onClick={() => setOpen(false)}
+                <nav className="flex flex-col items-start gap-6" aria-label="Primary">
+                  {NAV_LINKS.map((link, i) => (
+                    <motion.div
+                      key={link.to}
+                      initial={{ opacity: 0, x: -16 }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        transition: { duration: 0.6, delay: 0.25 + i * 0.07, ease },
+                      }}
+                      exit={{ opacity: 0, transition: { duration: 0.2 } }}
                     >
-                      {({ isActive }) => (
-                        <>
-                          {link.label}
-                          {isActive && (
-                            <span className="absolute -bottom-0.5 left-0 h-px w-5 bg-accent" />
-                          )}
-                        </>
-                      )}
-                    </NavLink>
-                  </motion.div>
-                ))}
-              </nav>
-
-              {/* Mobile only: theme toggle + location sit right under the links */}
-              <motion.div
-                className="flex items-center gap-2.5 sm:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { duration: 0.6, delay: 0.6, ease } }}
-                exit={{ opacity: 0, transition: { duration: 0.2 } }}
-              >
-                <ThemeToggle />
-                <span className="ui-label select-none text-line" aria-hidden="true">
-                  |
-                </span>
-                <span className="ui-label text-muted">{LOCATION}</span>
-              </motion.div>
-            </div>
+                      <NavLink
+                        to={link.to}
+                        end={link.to === '/'}
+                        className={menuLinkClass}
+                        onClick={() => setOpen(false)}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {link.label}
+                            {isActive && (
+                              <span className="absolute -bottom-0.5 left-0 h-px w-5 bg-accent" />
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    </motion.div>
+                  ))}
+                </nav>
+              </div>
             </motion.aside>
           </>
         )}

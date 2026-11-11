@@ -1,21 +1,14 @@
 @import "tailwindcss";
 
-/* ---------- Theme values (swapped by data-theme on <html>) ---------- */
+/* ---------- Theme values (dark only) ---------- */
 :root {
-  --bg: #f6f6f5;
-  --fg: #000000;
-  --muted: #5e5e5e;
-  --line: #c6c6c4;
-  --accent: #e0001b;
-  color-scheme: light;
-}
-
-:root[data-theme='dark'] {
   --bg: #1a1a1a;
   --fg: #f4f4f4;
   --muted: #8f8f8f;
   --line: #3a3a3a;
   --accent: #e0001b;
+  /* Left/right page margin (App.jsx and the Header sidebar use this) */
+  --page-x: clamp(1.5rem, 7vw, 7.5rem);
   color-scheme: dark;
 }
 
@@ -38,6 +31,10 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    background-color: var(--bg);
+    /* Keeps the scrollbar space reserved when the sidebar locks scrolling,
+       so the page content no longer jumps sideways. */
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -79,196 +76,4 @@
   &:hover {
     background-size: 100% 1px;
   }
-}
-
-/* ---------- Glitch theme switch (View Transitions API) ----------
-   useTheme.js sets data-vt="glitch" on <html> while the theme changes.
-   Simple and quick (0.3s): the old screen shakes with one red flash,
-   then the new screen shakes into place.
-   No colour transitions on body: the snapshots handle the change. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
-::view-transition-old(root) {
-  z-index: 1;
-}
-
-::view-transition-new(root) {
-  z-index: 2;
-}
-
-html[data-vt='glitch']::view-transition-old(root) {
-  animation: vt-glitch-old 0.3s steps(1, end) both;
-}
-
-html[data-vt='glitch']::view-transition-new(root) {
-  animation: vt-glitch-new 0.3s steps(1, end) both;
-}
-
-@keyframes vt-glitch-old {
-  0%    { opacity: 1; transform: translate(-5px, 0) scale(1.02); filter: none; }
-  16.7% { transform: translate(6px, 0) scale(1.02); filter: sepia(1) saturate(6) hue-rotate(-40deg); }
-  33.3% { transform: translate(-4px, 0) scale(1.02); filter: none; }
-  50%   { opacity: 0; }
-  100%  { opacity: 0; }
-}
-
-@keyframes vt-glitch-new {
-  0%    { opacity: 0; }
-  33.3% { opacity: 1; transform: translate(8px, 0) scale(1.02); }
-  50%   { transform: translate(-6px, 0) scale(1.02); }
-  66.7% { transform: translate(3px, 0) scale(1.01); }
-  83.3% { transform: translate(-1px, 0); }
-  100%  { opacity: 1; transform: none; }
-}
-
-/* ---------- Page background images ----------
-   Both live in src/assets (Vite bundles them):
-   light-background.png and dark-background.png */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-:root:not([data-theme='dark']) body::before {
-  background-color: #efefee; /* shows while the image loads */
-  background-image: url('./assets/light-background.png');
-}
-
-:root[data-theme='dark'] body::before {
-  background-color: #1a1a1a; /* shows while the image loads */
-  background-image: url('./assets/dark-background.png');
-}
-
-/* ---------- Horror glitch on the name (Index page) ----------
-   A quick red burst (about 0.4s) each time the name switches language.
-   The .glitching class is added by Index.jsx and removed when it ends. */
-:root {
-  --glitch-blood: #e00016; /* light mode (multiply blend) */
-  --glitch-dried: #7d000d;
-  --glitch-crimson: #b00014;
-  --glitch-ember: #ff3b2a;
-}
-
-:root[data-theme='dark'] {
-  --glitch-blood: #ff0a1f; /* dark mode (screen blend) */
-  --glitch-dried: #8f0010;
-  --glitch-crimson: #d0001a;
-  --glitch-ember: #ff4d3a;
-}
-
-.glitch-layer {
-  position: absolute;
-  inset: 0;
-  padding-inline-start: 0.4em; /* same as the h1 so letters line up exactly */
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
-  mix-blend-mode: screen;
-}
-
-:root:not([data-theme='dark']) .glitch-layer {
-  mix-blend-mode: multiply;
-}
-
-.glitch-blood   { color: var(--glitch-blood);   --gx: 1; }
-.glitch-dried   { color: var(--glitch-dried);   --gx: 0.6; }
-.glitch-crimson { color: var(--glitch-crimson); --gx: 1; }
-.glitch-ember   { color: var(--glitch-ember);   --gx: 0.6; }
-
-/* Red glow that flashes behind the name */
-.glitch-flash {
-  position: absolute;
-  inset: -50% -12%;
-  opacity: 0;
-  pointer-events: none;
-  background: radial-gradient(closest-side, var(--glitch-blood), transparent);
-}
-
-/* ---- Triggered state: one very quick burst ---- */
-.glitching .glitch-base    { animation: glitch-base 0.45s steps(1, end) 1; }
-.glitching .glitch-base > span:nth-child(odd)  { animation: glitch-letter-a 0.4s steps(1, end) 1; }
-.glitching .glitch-base > span:nth-child(even) { animation: glitch-letter-b 0.4s steps(1, end) 1; }
-.glitching .glitch-blood   { animation: glitch-left 0.4s steps(1, end) 1; }
-.glitching .glitch-dried   { animation: glitch-left 0.4s steps(1, end) 0.03s 1; }
-.glitching .glitch-crimson { animation: glitch-right 0.4s steps(1, end) 1; }
-.glitching .glitch-ember   { animation: glitch-right 0.4s steps(1, end) 0.03s 1; }
-.glitching .glitch-flash   { animation: glitch-flash 0.4s linear 1; }
-
-@keyframes glitch-base {
-  0%    { transform: translate(-3px, 0) skewX(-8deg); scale: 1.05; color: var(--glitch-blood);
-          text-shadow: 0 0 12px var(--glitch-blood); }
-  12.5% { transform: translate(4px, 0) skewX(6deg); scale: 1; color: inherit; text-shadow: none; }
-  25%   { opacity: 0.15; }
-  37.5% { opacity: 1; transform: translate(-2px, 1px) skewX(-5deg); scale: 1.03; color: var(--glitch-blood);
-          text-shadow: 0 0 16px var(--glitch-blood), 0 0 30px var(--glitch-dried); }
-  50%   { transform: translate(3px, -1px) skewX(7deg); scale: 1; color: inherit; text-shadow: none; }
-  62.5% { transform: translate(-4px, 0) skewX(-9deg); scale: 1.06; color: var(--glitch-blood); }
-  75%   { opacity: 0.2; scale: 1; }
-  87.5% { opacity: 1; transform: translate(1px, 0) skewX(2deg); color: inherit; }
-  100%  { transform: none; scale: 1; opacity: 1; color: inherit; text-shadow: none; }
-}
-
-/* Each letter jitters up/down on its own, odd and even in opposite directions */
-@keyframes glitch-letter-a {
-  0%    { translate: 0 -3px; }
-  12.5% { translate: 0 2px; }
-  25%   { translate: 0 0; }
-  37.5% { translate: 0 -2px; }
-  50%   { translate: 0 3px; }
-  62.5% { translate: 0 -1px; }
-  75%   { translate: 0 0; }
-  100%  { translate: 0 0; }
-}
-
-@keyframes glitch-letter-b {
-  0%    { translate: 0 3px; }
-  12.5% { translate: 0 -2px; }
-  25%   { translate: 0 0; }
-  37.5% { translate: 0 2px; }
-  50%   { translate: 0 -3px; }
-  62.5% { translate: 0 1px; }
-  75%   { translate: 0 0; }
-  100%  { translate: 0 0; }
-}
-
-@keyframes glitch-left {
-  0%    { opacity: 1; transform: translate(calc(var(--gx) * -12px), -1px); clip-path: inset(8% 0 62% 0); }
-  12.5% { opacity: 1; transform: translate(calc(var(--gx) * -22px), 1px); clip-path: inset(56% 0 10% 0); }
-  25%   { opacity: 0; }
-  37.5% { opacity: 1; transform: translate(calc(var(--gx) * -10px), 0); clip-path: inset(30% 0 38% 0); }
-  50%   { opacity: 1; transform: translate(calc(var(--gx) * -26px), 0); clip-path: inset(72% 0 4% 0); }
-  62.5% { opacity: 1; transform: translate(calc(var(--gx) * -14px), -1px); clip-path: inset(0 0 80% 0); }
-  75%   { opacity: 0; }
-  87.5% { opacity: 1; transform: translate(calc(var(--gx) * -4px), 0); clip-path: inset(0 0 0 0); }
-  100%  { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-}
-
-@keyframes glitch-right {
-  0%    { opacity: 1; transform: translate(calc(var(--gx) * 13px), 1px); clip-path: inset(48% 0 20% 0); }
-  12.5% { opacity: 1; transform: translate(calc(var(--gx) * 24px), -1px); clip-path: inset(6% 0 70% 0); }
-  25%   { opacity: 0; }
-  37.5% { opacity: 1; transform: translate(calc(var(--gx) * 11px), 0); clip-path: inset(62% 0 8% 0); }
-  50%   { opacity: 1; transform: translate(calc(var(--gx) * 28px), 0); clip-path: inset(24% 0 46% 0); }
-  62.5% { opacity: 1; transform: translate(calc(var(--gx) * 16px), 1px); clip-path: inset(78% 0 0 0); }
-  75%   { opacity: 0; }
-  87.5% { opacity: 1; transform: translate(calc(var(--gx) * 5px), 0); clip-path: inset(0 0 0 0); }
-  100%  { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-}
-
-@keyframes glitch-flash {
-  0%   { opacity: 0.4; }
-  12%  { opacity: 0.05; }
-  30%  { opacity: 0.32; }
-  55%  { opacity: 0.08; }
-  100% { opacity: 0; }
 }
