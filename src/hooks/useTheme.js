@@ -17,17 +17,8 @@ const getServerSnapshot = () => 'light'
 export function useTheme() {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
-  const toggleTheme = useCallback((event) => {
+  const toggleTheme = useCallback(() => {
     const next = getSnapshot() === 'dark' ? 'light' : 'dark'
-
-    // Origin of the reveal = center of the clicked button
-    const rect = event.currentTarget.getBoundingClientRect()
-    const x = rect.left + rect.width / 2
-    const y = rect.top + rect.height / 2
-    const radius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y),
-    )
 
     const apply = () => {
       root().dataset.theme = next
@@ -45,22 +36,11 @@ export function useTheme() {
       return
     }
 
+    // The glitch animation itself lives in index.css (vt-glitch-old / vt-glitch-new)
+    root().dataset.vt = 'glitch'
     const transition = document.startViewTransition(apply)
-
-    transition.ready.then(() => {
-      root().animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${radius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 800,
-          easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
-          pseudoElement: '::view-transition-new(root)',
-        },
-      )
+    transition.finished.finally(() => {
+      delete root().dataset.vt
     })
   }, [])
 

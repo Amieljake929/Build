@@ -2,11 +2,11 @@
 
 /* ---------- Theme values (swapped by data-theme on <html>) ---------- */
 :root {
-  --bg: #ffffff;
+  --bg: #f6f6f5;
   --fg: #000000;
-  --muted: #767676;
-  --line: #dcdcdc;
-  --accent: #f5945c;
+  --muted: #5e5e5e;
+  --line: #c6c6c4;
+  --accent: #e0001b;
   color-scheme: light;
 }
 
@@ -15,7 +15,7 @@
   --fg: #f4f4f4;
   --muted: #8f8f8f;
   --line: #3a3a3a;
-  --accent: #f5945c;
+  --accent: #e0001b;
   color-scheme: dark;
 }
 
@@ -29,7 +29,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
 
-  --font-sans: 'Aleo', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Aleo', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
   --tracking-brand: 0.4em;
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -42,6 +42,7 @@
 
   body {
     @apply min-h-dvh bg-bg font-light text-fg antialiased;
+    overflow-x: clip;
   }
 
   button:not(:disabled) {
@@ -80,8 +81,11 @@
   }
 }
 
-/* ---------- Circular theme reveal (View Transitions API) ---------- */
-/* No colour transitions on body: the snapshot handles the change. */
+/* ---------- Glitch theme switch (View Transitions API) ----------
+   useTheme.js sets data-vt="glitch" on <html> while the theme changes.
+   Simple and quick (0.3s): the old screen shakes with one red flash,
+   then the new screen shakes into place.
+   No colour transitions on body: the snapshots handle the change. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
@@ -96,21 +100,70 @@
   z-index: 2;
 }
 
+html[data-vt='glitch']::view-transition-old(root) {
+  animation: vt-glitch-old 0.3s steps(1, end) both;
+}
+
+html[data-vt='glitch']::view-transition-new(root) {
+  animation: vt-glitch-new 0.3s steps(1, end) both;
+}
+
+@keyframes vt-glitch-old {
+  0%    { opacity: 1; transform: translate(-5px, 0) scale(1.02); filter: none; }
+  16.7% { transform: translate(6px, 0) scale(1.02); filter: sepia(1) saturate(6) hue-rotate(-40deg); }
+  33.3% { transform: translate(-4px, 0) scale(1.02); filter: none; }
+  50%   { opacity: 0; }
+  100%  { opacity: 0; }
+}
+
+@keyframes vt-glitch-new {
+  0%    { opacity: 0; }
+  33.3% { opacity: 1; transform: translate(8px, 0) scale(1.02); }
+  50%   { transform: translate(-6px, 0) scale(1.02); }
+  66.7% { transform: translate(3px, 0) scale(1.01); }
+  83.3% { transform: translate(-1px, 0); }
+  100%  { opacity: 1; transform: none; }
+}
+
+/* ---------- Page background images ----------
+   Both live in src/assets (Vite bundles them):
+   light-background.png and dark-background.png */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+:root:not([data-theme='dark']) body::before {
+  background-color: #efefee; /* shows while the image loads */
+  background-image: url('./assets/light-background.png');
+}
+
+:root[data-theme='dark'] body::before {
+  background-color: #1a1a1a; /* shows while the image loads */
+  background-image: url('./assets/dark-background.png');
+}
+
 /* ---------- Horror glitch on the name (Index page) ----------
-   One 10s loop. Two tiny twitches warn you around 8.2s and 8.5s,
-   then the main burst runs from 9.0s to 10.0s. */
+   A quick red burst (about 0.4s) each time the name switches language.
+   The .glitching class is added by Index.jsx and removed when it ends. */
 :root {
-  --horror-blood: #e00016; /* light mode (multiply blend) */
-  --horror-dried: #7d000d;
-  --horror-ghost: #2d6f8a;
-  --horror-crimson: #b00014;
+  --glitch-blood: #e00016; /* light mode (multiply blend) */
+  --glitch-dried: #7d000d;
+  --glitch-crimson: #b00014;
+  --glitch-ember: #ff3b2a;
 }
 
 :root[data-theme='dark'] {
-  --horror-blood: #ff0a1f; /* dark mode (screen blend) */
-  --horror-dried: #8f0010;
-  --horror-ghost: #bfe9ff;
-  --horror-crimson: #d0001a;
+  --glitch-blood: #ff0a1f; /* dark mode (screen blend) */
+  --glitch-dried: #8f0010;
+  --glitch-crimson: #d0001a;
+  --glitch-ember: #ff4d3a;
 }
 
 .glitch-layer {
@@ -127,118 +180,95 @@
   mix-blend-mode: multiply;
 }
 
-.glitch-blood   { color: var(--horror-blood);   --gx: 1;    animation: glitch-left 10s steps(1, end) infinite; }
-.glitch-dried   { color: var(--horror-dried);   --gx: 0.6;  animation: glitch-left 10s steps(1, end) -0.07s infinite; }
-.glitch-ghost   { color: var(--horror-ghost);   --gx: 1;    animation: glitch-right 10s steps(1, end) infinite; }
-.glitch-crimson { color: var(--horror-crimson); --gx: 0.6;  animation: glitch-right 10s steps(1, end) -0.07s infinite; }
+.glitch-blood   { color: var(--glitch-blood);   --gx: 1; }
+.glitch-dried   { color: var(--glitch-dried);   --gx: 0.6; }
+.glitch-crimson { color: var(--glitch-crimson); --gx: 1; }
+.glitch-ember   { color: var(--glitch-ember);   --gx: 0.6; }
 
-.glitch-base {
-  animation: glitch-base 10s steps(1, end) infinite;
-}
-
-/* Long red streaks flashing across the name */
-.glitch-lines {
+/* Red glow that flashes behind the name */
+.glitch-flash {
   position: absolute;
-  inset: -0.3em -1.2em;
+  inset: -50% -12%;
   opacity: 0;
   pointer-events: none;
-  background:
-    linear-gradient(var(--horror-blood), var(--horror-blood)) 2% 16% / 38% 1px no-repeat,
-    linear-gradient(var(--fg), var(--fg)) 66% 30% / 26% 1px no-repeat,
-    linear-gradient(var(--horror-blood), var(--horror-blood)) 30% 52% / 46% 2px no-repeat,
-    linear-gradient(var(--horror-ghost), var(--horror-ghost)) 78% 66% / 18% 1px no-repeat,
-    linear-gradient(var(--horror-blood), var(--horror-blood)) 10% 80% / 32% 1px no-repeat,
-    linear-gradient(var(--fg), var(--fg)) 58% 92% / 30% 1px no-repeat;
-  animation: glitch-lines 10s steps(1, end) infinite;
+  background: radial-gradient(closest-side, var(--glitch-blood), transparent);
 }
 
-/* Dark bars that slice through the letters, like torn video */
-.glitch-cuts {
-  position: absolute;
-  inset: 0 -0.5em;
-  opacity: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(var(--bg), var(--bg)) 0 28% / 100% 3px no-repeat,
-    linear-gradient(var(--bg), var(--bg)) 0 54% / 70% 2px no-repeat,
-    linear-gradient(var(--bg), var(--bg)) 100% 74% / 80% 3px no-repeat;
-  animation: glitch-cuts 10s steps(1, end) infinite;
-}
+/* ---- Triggered state: one very quick burst ---- */
+.glitching .glitch-base    { animation: glitch-base 0.45s steps(1, end) 1; }
+.glitching .glitch-base > span:nth-child(odd)  { animation: glitch-letter-a 0.4s steps(1, end) 1; }
+.glitching .glitch-base > span:nth-child(even) { animation: glitch-letter-b 0.4s steps(1, end) 1; }
+.glitching .glitch-blood   { animation: glitch-left 0.4s steps(1, end) 1; }
+.glitching .glitch-dried   { animation: glitch-left 0.4s steps(1, end) 0.03s 1; }
+.glitching .glitch-crimson { animation: glitch-right 0.4s steps(1, end) 1; }
+.glitching .glitch-ember   { animation: glitch-right 0.4s steps(1, end) 0.03s 1; }
+.glitching .glitch-flash   { animation: glitch-flash 0.4s linear 1; }
 
 @keyframes glitch-base {
-  0%, 82.5%, 85.3%, 97.4%, 100% {
-    transform: none; opacity: 1; color: inherit; text-shadow: none;
-  }
-  82%    { transform: translateX(-3px); }
-  85%    { opacity: 0.25; }
-  90%    { transform: translate(-4px, 0) skewX(-10deg); color: var(--horror-blood);
-           text-shadow: 0 0 12px var(--horror-blood), 0 0 28px var(--horror-dried); }
-  90.8%  { opacity: 0; }
-  91.2%  { opacity: 1; color: inherit; transform: translate(6px, -2px) skewX(8deg) scaleY(1.05);
-           text-shadow: none; }
-  92%    { opacity: 0.3; }
-  92.4%  { opacity: 1; color: var(--horror-blood); transform: translate(-9px, 1px) skewX(-14deg) scaleY(0.95);
-           text-shadow: 0 0 18px var(--horror-blood); }
-  93.3%  { opacity: 0; }
-  93.7%  { opacity: 1; color: inherit; transform: none; text-shadow: 0 0 22px var(--horror-dried); }
-  94.5%  { transform: translate(5px, 0) skewX(10deg); color: var(--horror-blood); text-shadow: none; }
-  95.4%  { opacity: 0.1; }
-  95.8%  { opacity: 1; color: inherit; transform: none; }
-  97%    { transform: translate(-2px, 0) skewX(-4deg); color: var(--horror-blood); }
+  0%    { transform: translate(-3px, 0) skewX(-8deg); scale: 1.05; color: var(--glitch-blood);
+          text-shadow: 0 0 12px var(--glitch-blood); }
+  12.5% { transform: translate(4px, 0) skewX(6deg); scale: 1; color: inherit; text-shadow: none; }
+  25%   { opacity: 0.15; }
+  37.5% { opacity: 1; transform: translate(-2px, 1px) skewX(-5deg); scale: 1.03; color: var(--glitch-blood);
+          text-shadow: 0 0 16px var(--glitch-blood), 0 0 30px var(--glitch-dried); }
+  50%   { transform: translate(3px, -1px) skewX(7deg); scale: 1; color: inherit; text-shadow: none; }
+  62.5% { transform: translate(-4px, 0) skewX(-9deg); scale: 1.06; color: var(--glitch-blood); }
+  75%   { opacity: 0.2; scale: 1; }
+  87.5% { opacity: 1; transform: translate(1px, 0) skewX(2deg); color: inherit; }
+  100%  { transform: none; scale: 1; opacity: 1; color: inherit; text-shadow: none; }
+}
+
+/* Each letter jitters up/down on its own, odd and even in opposite directions */
+@keyframes glitch-letter-a {
+  0%    { translate: 0 -3px; }
+  12.5% { translate: 0 2px; }
+  25%   { translate: 0 0; }
+  37.5% { translate: 0 -2px; }
+  50%   { translate: 0 3px; }
+  62.5% { translate: 0 -1px; }
+  75%   { translate: 0 0; }
+  100%  { translate: 0 0; }
+}
+
+@keyframes glitch-letter-b {
+  0%    { translate: 0 3px; }
+  12.5% { translate: 0 -2px; }
+  25%   { translate: 0 0; }
+  37.5% { translate: 0 2px; }
+  50%   { translate: 0 -3px; }
+  62.5% { translate: 0 1px; }
+  75%   { translate: 0 0; }
+  100%  { translate: 0 0; }
 }
 
 @keyframes glitch-left {
-  0%, 82%, 85.3%, 90.8%, 93.3%, 95.8%, 97.4%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-  85%    { opacity: 0.8; transform: translate(-3px, 0); clip-path: inset(40% 0 40% 0); }
-  90%    { opacity: 1; transform: translate(calc(var(--gx) * -10px), 0); clip-path: inset(10% 0 60% 0); }
-  91.2%  { opacity: 1; transform: translate(calc(var(--gx) * -26px), 2px); clip-path: inset(58% 0 8% 0); }
-  92%    { opacity: 1; transform: translate(calc(var(--gx) * -14px), -2px); clip-path: inset(0 0 74% 0); }
-  92.4%  { opacity: 1; transform: translate(calc(var(--gx) * -34px), 0); clip-path: inset(34% 0 36% 0); }
-  93.7%  { opacity: 1; transform: translate(calc(var(--gx) * -18px), 1px); clip-path: inset(70% 0 0 0); }
-  94.5%  { opacity: 1; transform: translate(calc(var(--gx) * -40px), 0); clip-path: inset(20% 0 50% 0); }
-  95.4%  { opacity: 1; transform: translate(calc(var(--gx) * -12px), -1px); clip-path: inset(48% 0 24% 0); }
-  97%    { opacity: 1; transform: translate(calc(var(--gx) * -6px), 0); clip-path: inset(0 0 0 0); }
+  0%    { opacity: 1; transform: translate(calc(var(--gx) * -12px), -1px); clip-path: inset(8% 0 62% 0); }
+  12.5% { opacity: 1; transform: translate(calc(var(--gx) * -22px), 1px); clip-path: inset(56% 0 10% 0); }
+  25%   { opacity: 0; }
+  37.5% { opacity: 1; transform: translate(calc(var(--gx) * -10px), 0); clip-path: inset(30% 0 38% 0); }
+  50%   { opacity: 1; transform: translate(calc(var(--gx) * -26px), 0); clip-path: inset(72% 0 4% 0); }
+  62.5% { opacity: 1; transform: translate(calc(var(--gx) * -14px), -1px); clip-path: inset(0 0 80% 0); }
+  75%   { opacity: 0; }
+  87.5% { opacity: 1; transform: translate(calc(var(--gx) * -4px), 0); clip-path: inset(0 0 0 0); }
+  100%  { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
 }
 
 @keyframes glitch-right {
-  0%, 82%, 85.3%, 90.8%, 93.3%, 95.8%, 97.4%, 100% { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
-  82.5%  { opacity: 0.7; transform: translate(3px, 0); clip-path: inset(20% 0 55% 0); }
-  90%    { opacity: 1; transform: translate(calc(var(--gx) * 12px), 1px); clip-path: inset(50% 0 18% 0); }
-  91.2%  { opacity: 1; transform: translate(calc(var(--gx) * 30px), -1px); clip-path: inset(4% 0 72% 0); }
-  92%    { opacity: 1; transform: translate(calc(var(--gx) * 16px), 0); clip-path: inset(64% 0 6% 0); }
-  92.4%  { opacity: 1; transform: translate(calc(var(--gx) * 38px), 2px); clip-path: inset(22% 0 48% 0); }
-  93.7%  { opacity: 1; transform: translate(calc(var(--gx) * 20px), 0); clip-path: inset(0 0 80% 0); }
-  94.5%  { opacity: 1; transform: translate(calc(var(--gx) * 44px), -2px); clip-path: inset(56% 0 14% 0); }
-  95.4%  { opacity: 1; transform: translate(calc(var(--gx) * 14px), 0); clip-path: inset(30% 0 40% 0); }
-  97%    { opacity: 1; transform: translate(calc(var(--gx) * 8px), 0); clip-path: inset(0 0 0 0); }
+  0%    { opacity: 1; transform: translate(calc(var(--gx) * 13px), 1px); clip-path: inset(48% 0 20% 0); }
+  12.5% { opacity: 1; transform: translate(calc(var(--gx) * 24px), -1px); clip-path: inset(6% 0 70% 0); }
+  25%   { opacity: 0; }
+  37.5% { opacity: 1; transform: translate(calc(var(--gx) * 11px), 0); clip-path: inset(62% 0 8% 0); }
+  50%   { opacity: 1; transform: translate(calc(var(--gx) * 28px), 0); clip-path: inset(24% 0 46% 0); }
+  62.5% { opacity: 1; transform: translate(calc(var(--gx) * 16px), 1px); clip-path: inset(78% 0 0 0); }
+  75%   { opacity: 0; }
+  87.5% { opacity: 1; transform: translate(calc(var(--gx) * 5px), 0); clip-path: inset(0 0 0 0); }
+  100%  { opacity: 0; transform: none; clip-path: inset(0 0 0 0); }
 }
 
-@keyframes glitch-lines {
-  0%, 89.9%, 97.4%, 100% { opacity: 0; transform: none; }
-  90%    { opacity: 1; transform: translate(-18px, 0); }
-  90.8%  { opacity: 0; }
-  91.2%  { opacity: 1; transform: translate(24px, 2px) scaleX(0.85); }
-  92%    { opacity: 0; }
-  92.4%  { opacity: 1; transform: translate(-10px, -2px) scaleX(1.15); }
-  93.3%  { opacity: 0; }
-  94.5%  { opacity: 1; transform: translate(16px, 1px); }
-  95.4%  { opacity: 0; }
-  97%    { opacity: 1; transform: translate(-6px, 0); }
-}
-
-@keyframes glitch-cuts {
-  0%, 90.9%, 93.2%, 95.9%, 100% { opacity: 0; transform: none; }
-  91.2%  { opacity: 1; transform: translateX(14px); }
-  92.4%  { opacity: 1; transform: translateX(-20px) translateY(3px); }
-  94.5%  { opacity: 1; transform: translateX(10px) translateY(-4px); }
-  95.4%  { opacity: 1; transform: translateX(-8px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .glitch-layer,
-  .glitch-lines,
-  .glitch-cuts,
-  .glitch-base {
-    animation: none;
-  }
+@keyframes glitch-flash {
+  0%   { opacity: 0.4; }
+  12%  { opacity: 0.05; }
+  30%  { opacity: 0.32; }
+  55%  { opacity: 0.08; }
+  100% { opacity: 0; }
 }

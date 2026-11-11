@@ -1,6 +1,7 @@
 // Edit your content here. Everything marked TODO is placeholder.
 
 export const NAME = 'Amiel Jake'
+export const NAME_KO = '애밀 제이크' // shown when the pointer touches the name
 // These take turns under your name on the Index page
 export const ROLES = ['Web Designer', 'Full Stack Developer']
 export const LOCATION = 'Quezon City, PH'
