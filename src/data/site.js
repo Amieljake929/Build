@@ -14,6 +14,7 @@ export const RESUME_URL = '/Amiel-Jake-Baril.pdf'
 export const NAV_LINKS = [
   { label: 'Home', to: '/' },
   { label: 'Builds', to: '/builds' },
+  { label: 'Resources', to: '/resources'},
   { label: 'Notes', to: '/notes' },
   { label: 'Blog', to: '/blog' },
   { label: 'Reach', to: '/reach' },
@@ -35,7 +36,7 @@ export const X_URL = 'https://x.com/amieljakee'
 
 // Each string is one paragraph in the Bio
 export const BIO = [
-  "Hello! My name is Amiel Jake and I enjoy creating things that live on the internet. I'm a web designer and full stack developer based in Quezon City, Philippines.",
+  "Hello! My name is Amiel Jake Baril and I enjoy creating things that live on the internet. I'm a web designer and full stack developer based in Quezon City, Philippines.",
   'I focus on building clean, accessible and responsive websites, from the first sketch in Figma to the final deploy on Vercel.',
   "When I'm not designing or coding, I'm usually exploring new tools, refining my portfolio, or listening to music.",
 ]
@@ -404,9 +405,32 @@ export const POSTS = [
       'If you are in the middle of learning something, start keeping receipts. Future you will be glad you did.',
     ],
   },
+   {
+    slug: 'every-ex-carries-a-version-of-you',
+    title: 'Every ex carries a version of you',
+    meta: 'Nov 2026',
+    readTime: '6 min read',
+    excerpt:
+      'We often think of past relationships as chapters we close, but we leave fragments of ourselves behind in the people who walked away.',
+    body: [
+      'Have you ever bumped into someone from your past and felt like you were looking at a ghost—not of them, but of yourself? We like to think of breakups as clean breaks, as if packing up our boxes and changing our phone numbers erases the time spent. But the truth is much softer and stranger: every person we have deeply loved holds a locked-away version of who we used to be.',
+      { heading: 'The museum of former selves' },
+      'If you lined up all my exes in a row, they wouldn’t just represent different eras of my life; they would hold entirely different personalities. One holds the anxious, eager-to-please twenty-one-year-old who apologized for taking up space. Another holds the quieter, more cynical writer who learned how to set boundaries the hard way. A third carries the version of me who still believed love could conquer bad timing.',
+      'None of those versions exist anymore. I outgrew them, shed them, or healed past them. Yet, somewhere out there in the world, those people still walk around with an active memory of a person I have completely retired.',
+      { heading: 'What they keep that we forget' },
+      'We rarely remember the exact cadence of our own voices during a specific year of our lives, but someone who loved us does. They remember the music we played on repeat during long drives, the exact way we took our coffee before our tastes changed, and the insecurities we confessed in the dark at 2:00 AM.',
+      'In a way, our exes are unwitting archivists. They preserve snapshots of our emotional evolution that time tends to blur in our own minds. When we cringe at who we used to be, it is comforting—and terrifying—to realize that someone else witnessed that caterpillar phase before the wings finally came in.',
+      { heading: 'Leaving pieces behind' },
+      'It is a strange kind of intimacy to realize that parts of you are scattered across different cities and different lives. A joke you coined, a book recommendation that changed their outlook, a specific phrase you used when you were angry—they take those fragments with them into their next chapters, weaving them into the fabric of who they become next.',
+      'We do not walk away from love completely empty-handed, nor do we leave nothing behind. We are all patchworks of the people who loved us and the people we had to let go of.',
+      { heading: 'Moving forward with the collection' },
+      'Realizing that every ex carries a version of you changes how you view old heartbreaks. Instead of seeing them as wasted time or scars best forgotten, they become milestones of growth.',
+      'I don’t need to reclaim those old versions of myself. I am grateful they existed, and I am even more grateful that they stayed in the past—leaving room for the person I am today.',
+    ],
+  },
   {
     slug: 'number-1-in-your-own-lane',
-    title: 'Number 1: Being number 1 in your own lane',
+    title: 'Being number 1 in your own lane',
     meta: 'Nov 2026',
     readTime: '4 min read',
     excerpt:

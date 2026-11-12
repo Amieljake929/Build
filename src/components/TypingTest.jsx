@@ -9,6 +9,10 @@ const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 // Pixel / typewriter font used for the result numbers (falls back to Courier)
 const PIXEL_FONT = "'Geist Pixel', 'Courier New', Courier, monospace"
 
+// ---- Credit (bottom right of the modal) ----
+const CREDIT_NAME = 'Bryl Lim'
+const CREDIT_URL = '' // paste his website / profile link here to make the name clickable
+
 // ---- Strictness settings (tweak these to taste) ----
 const ERROR_PENALTY = 2 // every wrong keystroke (even if you fix it) removes this many characters from your score
 const MIN_LIVE_SECONDS = 2 // live WPM stays at 0 until this many seconds, so early bursts don't look inflated
@@ -149,6 +153,33 @@ function Char({ ch, i, typed, idle }) {
   )
 }
 
+// Small credit in the bottom-right corner of the modal
+function Credit() {
+  const name = CREDIT_URL ? (
+    <a
+      href={CREDIT_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-white/60 underline decoration-white/20 underline-offset-4 transition-colors duration-300 hover:text-white hover:decoration-white/60"
+    >
+      {CREDIT_NAME}
+    </a>
+  ) : (
+    <span className="text-white/60">{CREDIT_NAME}</span>
+  )
+
+  return (
+    <motion.p
+      data-keep
+      className="fixed right-8 bottom-8 text-xs text-white/35"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0, transition: { duration: 0.6, ease, delay: 0.5 } }}
+    >
+      design inspired by {name}
+    </motion.p>
+  )
+}
+
 function KeyboardIcon() {
   return (
     <svg
@@ -192,6 +223,13 @@ function TypingModal({ onClose }) {
   const [result, setResult] = useState(null)
   const [pressed, setPressed] = useState('')
   const inputRef = useRef(null)
+
+  // Focus the input as soon as it appears. The typing view remounts after
+  // "try again", so this makes sure the new input is focused right away.
+  const setInput = useCallback((el) => {
+    inputRef.current = el
+    if (el) el.focus({ preventScroll: true })
+  }, [])
 
   // Each word is one non-breaking group (so words never split across lines)
   const layout = useMemo(() => {
@@ -356,7 +394,7 @@ function TypingModal({ onClose }) {
 
                 {/* Invisible input that catches the typing */}
                 <textarea
-                  ref={inputRef}
+                  ref={setInput}
                   value={typed}
                   onChange={handleChange}
                   onKeyDown={(e) => {
@@ -451,6 +489,8 @@ function TypingModal({ onClose }) {
           )}
         </AnimatePresence>
       </motion.div>
+
+      <Credit />
     </motion.div>
   )
 }

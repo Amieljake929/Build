@@ -3,10 +3,13 @@ import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { NAV_LINKS } from '../data/site'
 
-// Soft fade easing: gentle start, long smooth finish
+// Soft easing: gentle start, long smooth finish
 const fadeEase = [0.32, 0.72, 0, 1]
 
-// Links are left-aligned now, so no optical-centering padding is needed.
+// How far the sidebar drifts in from the left while it fades (px)
+const SLIDE_DISTANCE = 40
+
+// Links keep their text left-aligned.
 const menuLinkClass = ({ isActive }) =>
   `relative inline-block py-1 text-xl font-normal tracking-brand uppercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1.5 hover:text-fg sm:text-2xl ${
     isActive ? 'text-fg' : 'text-muted'
@@ -16,21 +19,13 @@ const menuLinkClass = ({ isActive }) =>
 const lineBase =
   'absolute left-2 h-px bg-fg transition-[translate,rotate,width] duration-500 ease-soft'
 
-// The two-line icon. open = false -> hamburger, open = true -> X
-function MenuIcon({ open }) {
+// The hamburger icon (two lines)
+function MenuIcon() {
   return (
     <>
+      <span className={`${lineBase} top-[calc(50%_-_4px)] w-[1.15rem]`} />
       <span
-        className={`${lineBase} top-[calc(50%_-_4px)] w-[1.15rem] ${
-          open ? 'translate-y-[3.5px] rotate-45' : ''
-        }`}
-      />
-      <span
-        className={`${lineBase} top-[calc(50%_+_3px)] ${
-          open
-            ? 'w-[1.15rem] -translate-y-[3.5px] -rotate-45'
-            : 'w-[0.65rem] group-hover:w-[1.15rem]'
-        }`}
+        className={`${lineBase} top-[calc(50%_+_3px)] w-[0.65rem] group-hover:w-[1.15rem]`}
       />
     </>
   )
@@ -59,24 +54,28 @@ export default function Header() {
       animate={{ opacity: 1 }}
       transition={{ duration: 1.2, delay: 0.3 }}
     >
-      {/* One button for both jobs: it sits ABOVE the sidebar (z-5) and its two
-          lines morph from a hamburger into an X. To move it up/down, change
-          `top-3` (e.g. top-4 = lower, top-2 = higher). */}
+      {/* Menu button. It fades out while the sidebar is open (there is no close
+          button: click/tap anywhere outside the sidebar, or press Esc, to close).
+          To move it up/down, change `top-3` (e.g. top-4 = lower, top-2 = higher). */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Close menu' : 'Open menu'}
+        onClick={() => setOpen(true)}
+        aria-label="Open menu"
         aria-expanded={open}
         aria-controls="site-sidebar"
-        className="menu-btn group relative top-3 z-5 -m-2 size-8"
+        aria-hidden={open}
+        tabIndex={open ? -1 : 0}
+        className={`menu-btn group relative top-3 z-5 -m-2 size-8 transition-opacity duration-300 ${
+          open ? 'pointer-events-none opacity-0' : 'opacity-100'
+        }`}
       >
-        <MenuIcon open={open} />
+        <MenuIcon />
       </button>
 
       <AnimatePresence>
         {open && (
           <>
-            {/* Blurs the page behind the sidebar on desktop; click to close. */}
+            {/* Covers the whole page behind the sidebar: click/tap it to close. */}
             <motion.div
               key="backdrop"
               className="fixed inset-0 z-1 bg-bg/40 backdrop-blur-xs"
@@ -88,18 +87,22 @@ export default function Header() {
               onClick={() => setOpen(false)}
             />
 
-            {/* Sidebar: fades in/out (no sliding). Everything is left-aligned
-                to the page margin, the same column as the menu button. */}
+            {/* Sidebar: slides in a little while fading (desktop + mobile).
+                Mobile: 78% of the screen (max 18rem) so a strip of the page stays
+                visible on the right; tap it to close. To change the mobile width,
+                edit `w-[78vw] max-w-72`.
+                Desktop: width = page margin + 14rem, link block centered in the
+                sidebar (lg:mx-auto) with left-aligned text. */}
             <motion.aside
               key="sidebar"
               id="site-sidebar"
-              className="fixed inset-y-0 left-0 z-4 flex w-full flex-col bg-bg pt-(--pad-top) pb-[calc(var(--pad-top)_+_env(safe-area-inset-bottom,0px))] ps-(--page-x) pe-8 lg:w-[min(45vw,calc(var(--page-x)_+_18rem))] lg:border-r lg:border-line"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.45, ease: fadeEase }}
+              className="fixed inset-y-0 left-0 z-4 flex w-[78vw] max-w-72 flex-col border-r border-line bg-bg pt-(--pad-top) pb-[calc(var(--pad-top)_+_env(safe-area-inset-bottom,0px))] ps-(--page-x) pe-6 lg:w-[calc(var(--page-x)_+_14rem)] lg:max-w-none lg:ps-0 lg:pe-0"
+              initial={{ opacity: 0, x: -SLIDE_DISTANCE }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -SLIDE_DISTANCE }}
+              transition={{ duration: 0.5, ease: fadeEase }}
             >
-              <div className="my-auto flex flex-col items-start gap-10">
+              <div className="my-auto flex flex-col items-start gap-10 lg:mx-auto">
                 <nav className="flex flex-col items-start gap-6" aria-label="Primary">
                   {NAV_LINKS.map((link, i) => (
                     <div key={link.to}>

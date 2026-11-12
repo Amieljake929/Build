@@ -6,6 +6,7 @@ import Index from './pages/Index'
 import Builds from './pages/Builds'
 import Notes from './pages/Notes'
 import Blog from './pages/Blog'
+import Resources from './pages/Resources'
 import Reach from './pages/Reach'
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/builds" element={<Builds />} />
             <Route path="/notes/:slug?" element={<Notes />} />
             <Route path="/blog/:slug?" element={<Blog />} />
+            <Route path="/resources" element={<Resources />} />
             <Route path="/reach" element={<Reach />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
