@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig } from 'framer-motion'
 import Header from './components/Header'
+import TypingTest from './components/TypingTest'
 import Index from './pages/Index'
 import Builds from './pages/Builds'
 import Notes from './pages/Notes'
@@ -12,11 +13,12 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      {/* px-(--page-x): left/right page margin, defined in index.css */}
-      <div className="flex min-h-dvh flex-col px-(--page-x) pt-[clamp(1.25rem,4vw,3.5rem)] pb-[calc(clamp(1.25rem,4vw,3.5rem)_+_env(safe-area-inset-bottom,0px))]">
+      {/* px-(--page-x) / pt-(--pad-top): page margins, defined in index.css */}
+      <div className="flex min-h-dvh flex-col px-(--page-x) pt-(--pad-top) pb-[calc(var(--pad-top)_+_env(safe-area-inset-bottom,0px))]">
         <Header />
 
-        <AnimatePresence mode="wait" initial={false}>
+        {/* No initial={false} here, so pages also animate in on the very first load */}
+        <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<Index />} />
             <Route path="/builds" element={<Builds />} />
@@ -27,6 +29,9 @@ export default function App() {
           </Routes>
         </AnimatePresence>
       </div>
+
+      {/* Floating typing-test button (bottom right) and its modal */}
+      <TypingTest />
     </MotionConfig>
   )
 }

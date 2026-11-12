@@ -427,26 +427,6 @@ export const POSTS = [
     ],
   },
   {
-    slug: 'building-this-portfolio',
-    title: 'Building this portfolio with React, Vite and Tailwind',
-    meta: 'Nov 2026',
-    readTime: '5 min read',
-    excerpt:
-      'Why I rebuilt my portfolio from scratch, and the small decisions that made it easier to maintain.',
-    body: [
-      'My old portfolio looked busy and was hard to edit. Changing a sentence meant digging through components. This time I started with a rule: all content lives in one data file, and the components only decide how it looks.',
-      { heading: 'The stack' },
-      'I used Vite for fast refreshes, Tailwind CSS v4 for styling with a few design tokens (background, text, muted, line and one red accent), Framer Motion for gentle page transitions, and React Router for the pages.',
-      { heading: 'Decisions that helped' },
-      'Restraint was the biggest one. A dark background, one accent color and a lot of space let the content carry the page. I only added motion where it helps the reader follow what changed.',
-      'Keeping content in `site.js` meant I could write the notes and blog posts without touching layout code. Adding a new post is just adding an object to a list.',
-      { heading: 'A bug worth remembering' },
-      'When the side menu opened, the page behind it shifted sideways. The cause was that I locked scrolling, which removed the scrollbar and made the page a bit wider. Reserving the scrollbar space with `scrollbar-gutter: stable` fixed it. It is a tiny line of CSS, but it took me a while to understand why it happened.',
-      { heading: 'What I learned' },
-      'A portfolio is never really finished. Starting small, shipping, and improving it a bit at a time works better than waiting for it to be perfect.',
-    ],
-  },
-  {
     slug: 'being-cringe',
     title: 'Being cringe is the price of getting better',
     meta: 'Oct 2026',
@@ -465,6 +445,26 @@ export const POSTS = [
       { heading: 'What I do about it' },
       'I post things anyway, with context. I try to laugh at my older work instead of hiding it. I keep a record of what I made so I can see how far things have come, and I remind myself that being cringe means I tried something.',
       'Embarrassment fades quickly. Not having made the thing at all stays much longer.',
+    ],
+  },
+  {
+    slug: 'building-this-portfolio',
+    title: 'Building this portfolio with React, Vite and Tailwind',
+    meta: 'Nov 2026',
+    readTime: '5 min read',
+    excerpt:
+      'Why I rebuilt my portfolio from scratch, and the small decisions that made it easier to maintain.',
+    body: [
+      'My old portfolio looked busy and was hard to edit. Changing a sentence meant digging through components. This time I started with a rule: all content lives in one data file, and the components only decide how it looks.',
+      { heading: 'The stack' },
+      'I used Vite for fast refreshes, Tailwind CSS v4 for styling with a few design tokens (background, text, muted, line and one red accent), Framer Motion for gentle page transitions, and React Router for the pages.',
+      { heading: 'Decisions that helped' },
+      'Restraint was the biggest one. A dark background, one accent color and a lot of space let the content carry the page. I only added motion where it helps the reader follow what changed.',
+      'Keeping content in `site.js` meant I could write the notes and blog posts without touching layout code. Adding a new post is just adding an object to a list.',
+      { heading: 'A bug worth remembering' },
+      'When the side menu opened, the page behind it shifted sideways. The cause was that I locked scrolling, which removed the scrollbar and made the page a bit wider. Reserving the scrollbar space with `scrollbar-gutter: stable` fixed it. It is a tiny line of CSS, but it took me a while to understand why it happened.',
+      { heading: 'What I learned' },
+      'A portfolio is never really finished. Starting small, shipping, and improving it a bit at a time works better than waiting for it to be perfect.',
     ],
   },
 ]

@@ -1,5 +1,5 @@
 import PageTransition from '../components/PageTransition'
-import { EMAIL, LOCATION, FACTS, SOCIALS } from '../data/site'
+import { EMAIL, LOCATION, FACTS, SOCIALS, RESUME_URL } from '../data/site'
 
 const titleClass =
   'text-[length:clamp(1.1rem,1rem_+_0.6vw,1.5rem)] font-light tracking-brand uppercase'
@@ -40,6 +40,18 @@ export default function Reach() {
         </dl>
 
         <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2">
+          {/* Resume: opens public/Amiel-Jake-Baril.pdf in a new tab */}
+          <li>
+            <a
+              href={RESUME_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ui-label link-line py-2 text-muted hover:text-fg"
+            >
+              Resume
+            </a>
+          </li>
+
           {socials.map((social) => (
             <li key={social.label}>
               <a

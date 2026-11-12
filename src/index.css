@@ -6,14 +6,21 @@
   --fg: #f4f4f4;
   --muted: #8f8f8f;
   --line: #3a3a3a;
-  --accent: #e0001b;
-  /* Left/right page margin (App.jsx and the Header sidebar use this) */
-  --page-x: clamp(1.5rem, 7vw, 7.5rem);
+  --accent: #f5945c;
+  /* Left/right page margin (App.jsx and the Header sidebar use this).
+     Bigger value = the left and right columns sit closer together. */
+  --page-x: clamp(1.5rem, 12vw, 16rem);
+  /* Top page padding (App.jsx and the Header sidebar use this) */
+  --pad-top: clamp(1.25rem, 4vw, 3.5rem);
+  /* Menu button AND close button: change these two to move BOTH together.
+     Positive x = right, positive y = down. */
+  --menu-shift-x: 0rem;
+  --menu-shift-y: 0.5rem;
   color-scheme: dark;
 }
 
 /* ---------- Tailwind tokens ----------
-   Gives you: bg-bg, text-fg, text-muted, border-line, font-sans (Aleo),
+   Gives you: bg-bg, text-fg, text-muted, border-line, font-sans (Geist),
    tracking-brand (40%), ease-soft */
 @theme inline {
   --color-bg: var(--bg);
@@ -22,7 +29,8 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
 
-  --font-sans: 'Aleo', 'Noto Serif KR', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, Arial, sans-serif;
   --tracking-brand: 0.4em;
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -35,6 +43,15 @@
     /* Keeps the scrollbar space reserved when the sidebar locks scrolling,
        so the page content no longer jumps sideways. */
     scrollbar-gutter: stable;
+  }
+
+  /* Desktop only: everything is sized in rem, so this scales the whole site.
+     81% = what the site looked like with Chrome zoom at 90%, while Chrome
+     stays at 100%. Want it bigger? Try 85%. Smaller? Try 78%. */
+  @media (min-width: 64rem) {
+    html {
+      font-size: 81%;
+    }
   }
 
   body {
@@ -65,6 +82,42 @@
   @media (width < 40rem) {
     font-size: 0.625rem;
   }
+}
+
+/* The role line under the name: always ONE line.
+   On small screens the text shrinks with the width of its container
+   (cqw = 1% of the container, set with [container-type:inline-size]
+   on the left column in Index.jsx) and the letter-spacing gets tighter. */
+@utility role-line {
+  display: block;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  line-height: 1;
+
+  @media (width < 40rem) {
+    font-size: min(0.625rem, 3.2cqw);
+    letter-spacing: 0.22em;
+  }
+}
+
+/* Used by the menu button AND the close button, so they always share
+   the same nudge (see --menu-shift-x / --menu-shift-y above). */
+@utility menu-btn {
+  translate: var(--menu-shift-x) var(--menu-shift-y);
+}
+
+/* Blinking caret in the typing test */
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@utility caret-blink {
+  animation: caret-blink 1s steps(1) infinite;
 }
 
 /* Underline that draws in on hover */

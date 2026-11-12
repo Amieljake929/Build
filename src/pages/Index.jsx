@@ -1,72 +1,108 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import PageTransition from '../components/PageTransition'
-import { USERNAME, X_URL, ROLES, BIO, FACTS, EMAIL, NOTES, POSTS } from '../data/site'
+import { USERNAME, X_URL, ROLES, BIO, NOTES, POSTS } from '../data/site'
 
 const ease = [0.22, 1, 0.36, 1]
 
 // Parent: reveals its children one after another
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.09, delayChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.15 } },
+}
+
+// Right column starts a little after the left one
+const containerRight = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.14, delayChildren: 0.55 } },
 }
 
 // Each block fades in, rises and un-blurs
 const item = {
-  hidden: { opacity: 0, y: 18, filter: 'blur(4px)' },
-  show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.8, ease } },
+  hidden: { opacity: 0, y: 28, filter: 'blur(6px)' },
+  show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 1, ease } },
+}
+
+// Heading slides up from behind its own line (masked by overflow-hidden)
+const heading = {
+  hidden: { y: '110%' },
+  show: { y: 0, transition: { duration: 1.1, ease } },
+}
+
+// The orange line draws in from the left
+const line = {
+  hidden: { scaleX: 0 },
+  show: { scaleX: 1, transition: { duration: 0.9, ease } },
 }
 
 // Lists inside the right column reveal their rows with a smaller delay
 const list = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.07 } },
 }
 
 const row = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease } },
+  hidden: { opacity: 0, x: 14 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.7, ease } },
 }
 
 export default function Index() {
   const snippets = POSTS.slice(0, 3)
 
-  // Status is hidden on this page only (it still exists in site.js).
-  const facts = FACTS.filter((fact) => fact.label !== 'Status')
+  // Start the animation only after Geist is loaded, so the text never
+  // changes font in the middle of it. The 1.5s timeout is a safety net.
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    const start = () => alive && setReady(true)
+    if (document.fonts?.load) {
+      Promise.race([
+        document.fonts.load('1em Geist'),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]).then(start, start)
+    } else {
+      start()
+    }
+    return () => {
+      alive = false
+    }
+  }, [])
 
   return (
     <PageTransition>
-      {/* zoom: 0.9 makes this page look like 90% scale at normal browser zoom.
-          The Header is outside this section, so it keeps its size. */}
+      {/* lg:items-center vertically centers the left intro against the right column.
+          The desktop scale lives in index.css (html font-size). */}
       <motion.section
-        className="grid w-full gap-16 pt-6 pb-10 [zoom:0.9] lg:grid-cols-2 lg:gap-24 lg:pt-10"
+        className="grid w-full gap-16 pt-6 pb-10 lg:grid-cols-2 lg:items-center lg:gap-24 lg:pt-10"
         variants={container}
         initial="hidden"
-        animate="show"
+        animate={ready ? 'show' : 'hidden'}
       >
-        {/* ---------- Left: intro + details ---------- */}
-        <motion.div className="min-w-0" variants={container}>
-          <motion.h1
-            variants={item}
-            className="text-[length:clamp(1.75rem,1.3rem_+_1.4vw,2.5rem)] font-light tracking-[0.01em]"
-          >
-            {/* Opens my X (Twitter) account in a new tab */}
-            <a
-              href={X_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="transition-colors duration-400 ease-soft hover:text-accent"
-            >
-              {USERNAME}
-            </a>
-          </motion.h1>
-          <motion.p variants={item} className="ui-label mt-4 text-muted">
+        {/* ---------- Left: intro ----------
+            [container-type:inline-size] lets the role line size itself
+            to this column's width (see role-line in index.css). */}
+        <motion.div className="min-w-0 [container-type:inline-size]" variants={container}>
+          <h1 className="overflow-hidden pb-1 text-[length:clamp(1.75rem,1.3rem_+_1.4vw,2.5rem)] font-light tracking-[0.01em]">
+            <motion.span variants={heading} className="block">
+              {/* Opens my X (Twitter) account in a new tab */}
+              <a
+                href={X_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors duration-400 ease-soft hover:text-accent"
+              >
+                {USERNAME}
+              </a>
+            </motion.span>
+          </h1>
+          <motion.p variants={item} className="role-line mt-4 text-muted">
             {ROLES.join('  /  ')}
           </motion.p>
 
           <motion.span
-            variants={item}
-            className="my-8 block h-px w-10 bg-accent"
+            variants={line}
+            className="my-8 block h-px w-10 origin-left bg-accent"
             aria-hidden="true"
           />
 
@@ -78,31 +114,10 @@ export default function Index() {
               <p key={i}>{paragraph}</p>
             ))}
           </motion.div>
-
-          {/* Based in, Email */}
-          <motion.dl
-            variants={item}
-            className="mt-10 grid max-w-[32rem] gap-3 border-t border-line pt-6 text-sm"
-          >
-            {facts.map((fact) => (
-              <div key={fact.label} className="grid grid-cols-[6rem_1fr] gap-4">
-                <dt className="ui-label self-center text-muted">{fact.label}</dt>
-                <dd className="tracking-[0.02em] text-fg">{fact.value}</dd>
-              </div>
-            ))}
-            <div className="grid grid-cols-[6rem_1fr] gap-4">
-              <dt className="ui-label self-center text-muted">Email</dt>
-              <dd>
-                <a href={`mailto:${EMAIL}`} className="link-line tracking-[0.02em] text-fg">
-                  {EMAIL}
-                </a>
-              </dd>
-            </div>
-          </motion.dl>
         </motion.div>
 
         {/* ---------- Right: notes + blog ---------- */}
-        <motion.div className="min-w-0 space-y-14" variants={container}>
+        <motion.div className="min-w-0 space-y-14" variants={containerRight}>
           {/* Notes: two columns, square bullets, each links to its own page */}
           <motion.section variants={item}>
             <h2 className="mb-6 text-xl font-medium text-fg">Notes</h2>
