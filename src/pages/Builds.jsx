@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
+import PageTitle from '../components/PageTitle'
 import { BUILDS } from '../data/site'
-
-const titleClass =
-  'text-[length:clamp(1.1rem,1rem_+_0.6vw,1.5rem)] font-light tracking-brand uppercase'
 
 // Row layout: name | category + description | arrow
 const rowClass =
@@ -64,7 +62,7 @@ export default function Builds() {
   return (
     <PageTransition>
       <section className="w-[min(100%,38rem)]">
-        <h1 className={`mb-9 ${titleClass}`}>Builds</h1>
+        <PageTitle>Builds</PageTitle>
         <ul className="border-b border-line">
           {BUILDS.map((build) => (
             <li key={build.title} className="border-t border-line">

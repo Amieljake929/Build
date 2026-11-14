@@ -1,5 +1,6 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
+import PageTitle from '../components/PageTitle'
 import AuthorLine from '../components/AuthorLine'
 import { POSTS } from '../data/site'
 
@@ -8,7 +9,7 @@ function PostList() {
   return (
     <PageTransition>
       <section className="w-[min(100%,38rem)]">
-        <h2 className="mb-6 text-xl font-medium text-fg">Blog</h2>
+        <PageTitle>Blog</PageTitle>
         <ul className="border-b border-line">
           {POSTS.map((post) => (
             <li key={post.slug}>

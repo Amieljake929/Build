@@ -1,5 +1,6 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import PageTransition from '../components/PageTransition'
+import PageTitle from '../components/PageTitle'
 import AuthorLine from '../components/AuthorLine'
 import { NOTES } from '../data/site'
 
@@ -11,7 +12,7 @@ function NoteList() {
   return (
     <PageTransition>
       <section className="w-[min(100%,38rem)]">
-        <h2 className="mb-6 text-xl font-medium text-fg">Notes</h2>
+        <PageTitle>Notes</PageTitle>
         <ul className="border-b border-line">
           {NOTES.map((note) => (
             <li key={note.slug}>

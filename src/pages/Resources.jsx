@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion'
 import { ArrowUpRight } from 'lucide-react'
+import PageTransition from '../components/PageTransition'
+import PageTitle from '../components/PageTitle'
 
 const ease = [0.22, 1, 0.36, 1]
 
 // Edit this list to add, remove or reorder anything on the page.
 const SECTIONS = [
-    {
+  {
     title: 'Stacks & Tools',
     items: [
       {
@@ -30,7 +32,7 @@ const SECTIONS = [
       },
     ],
   },
-   {
+  {
     title: 'Templates & UI Kits',
     items: [
       {
@@ -40,7 +42,7 @@ const SECTIONS = [
       },
       {
         name: 'Figma',
-        desc: "A collaborative interface design tool for creating UI/UX designs, prototypes, and graphics.",
+        desc: 'A collaborative interface design tool for creating UI/UX designs, prototypes, and graphics.',
         url: 'https://www.figma.com/community/website-templates?resource_type=files',
       },
     ],
@@ -53,14 +55,13 @@ const SECTIONS = [
         desc: 'A comprehensive guide to understanding and using generative AI tools.',
         url: 'https://simpli-web.app.link/e/S6pUXy2brVb',
       },
-       {
+      {
         name: 'Hugging Face LLM Course',
         desc: 'A free course on large language models, transformers, and natural language processing.',
         url: 'https://huggingface.co/learn/llm-course/chapter1/1',
       },
     ],
   },
-
 ]
 
 function ResourceLink({ item }) {
@@ -85,42 +86,34 @@ function ResourceLink({ item }) {
 
 export default function Resources() {
   return (
-    <motion.main
-      className="mx-auto mt-16 flex w-full max-w-4xl flex-1 flex-col pb-16 sm:mt-24"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0, transition: { duration: 0.7, ease } }}
-      exit={{ opacity: 0, y: -8, transition: { duration: 0.3, ease } }}
-    >
-      <header className="max-w-xl">
-        <h1 className="text-3xl font-normal tracking-tight text-fg sm:text-4xl">Resources</h1>
-        <p className="mt-5 text-base leading-relaxed text-muted">
-          A curated collection of tools, guides, and references I rely on for building, designing, and finding inspiration. Everything here is free or freemium, and genuinely worth your time.
-        </p>
-      </header>
+    <PageTransition>
+      <section className="w-[min(100%,52rem)]">
+        <PageTitle>Resources</PageTitle>
 
-      <div className="mt-16 flex flex-col gap-14">
-        {SECTIONS.map((section, si) => (
-          <motion.section
-            key={section.title}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              transition: { duration: 0.6, ease, delay: 0.15 + si * 0.08 },
-            }}
-          >
-            <h2 className="ui-label text-[0.7rem] tracking-[0.18em] text-muted uppercase">
-              {section.title}
-            </h2>
+        <div className="flex flex-col gap-14">
+          {SECTIONS.map((section, si) => (
+            <motion.section
+              key={section.title}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                transition: { duration: 0.6, ease, delay: 0.15 + si * 0.08 },
+              }}
+            >
+              <h2 className="ui-label text-[0.7rem] tracking-[0.18em] text-muted uppercase">
+                {section.title}
+              </h2>
 
-            <div className="mt-5 grid gap-x-16 sm:grid-cols-2">
-              {section.items.map((item) => (
-                <ResourceLink key={item.url} item={item} />
-              ))}
-            </div>
-          </motion.section>
-        ))}
-      </div>
-    </motion.main>
+              <div className="mt-5 grid gap-x-16 sm:grid-cols-2">
+                {section.items.map((item) => (
+                  <ResourceLink key={item.url} item={item} />
+                ))}
+              </div>
+            </motion.section>
+          ))}
+        </div>
+      </section>
+    </PageTransition>
   )
 }
