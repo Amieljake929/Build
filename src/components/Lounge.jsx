@@ -1,6 +1,11 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoungeChat from './LoungeChat'
+import LoungeStars from './LoungeStars'
+import useDesktop from '../hooks/useDesktop'
+
+// The globe (and its map data) only downloads when it is needed
+const LoungeGlobe = lazy(() => import('./LoungeGlobe'))
 
 const ease = [0.22, 1, 0.36, 1]
 
@@ -36,6 +41,9 @@ function Credit() {
 }
 
 export default function Lounge({ onClose }) {
+  // The globe is desktop only. Phones and tablets get the chat alone.
+  const desktop = useDesktop()
+
   // Scroll lock + Esc to close
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -59,24 +67,40 @@ export default function Lounge({ onClose }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease }}
       onClick={(e) => {
-        // Clicking empty space closes; clicking the chat or the credit (data-keep) does not
+        // Clicking empty space closes; clicking the chat, globe or credit (data-keep) does not
         if (!e.target.closest('[data-keep]')) onClose()
       }}
     >
+      {/* Outer space: stars over the blurred page */}
+      <LoungeStars />
+
       {/* Phones have no Esc key, so hint at the tap-outside gesture */}
-      <p className="pointer-events-none absolute inset-x-0 top-5 text-center text-[0.7rem] text-white/30 lg:hidden">
+      <p className="pointer-events-none absolute inset-x-0 top-5 z-10 text-center text-[0.7rem] text-white/30 lg:hidden">
         tap outside to close
       </p>
 
-      {/* Phones: a narrow, centered column. Larger screens: the wider chat. */}
+      {/* Desktop: chat on the left, globe on the right. Phones: a narrow centered chat. */}
       <motion.div
-        data-keep
-        className="w-full max-w-[18.5rem] sm:max-w-[32rem]"
+        className={`relative z-10 ${
+          desktop
+            ? 'grid w-full max-w-[72rem] grid-cols-[minmax(0,32rem)_minmax(0,1fr)] items-center gap-10'
+            : 'w-full max-w-[18.5rem] sm:max-w-[32rem]'
+        }`}
         initial={{ opacity: 0, y: 14, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease, delay: 0.05 }}
       >
-        <LoungeChat />
+        <div data-keep>
+          <LoungeChat />
+        </div>
+
+        {desktop && (
+          <div className="min-w-0">
+            <Suspense fallback={null}>
+              <LoungeGlobe />
+            </Suspense>
+          </div>
+        )}
       </motion.div>
 
       <Credit />

@@ -53,6 +53,110 @@ export const FACTS = [
    Each note has `sections`: a heading and a list of bullet `points`. */
 export const NOTES = [
   {
+    slug: 'daily-routines-and-setup',
+    title: 'Daily Routines & Setup',
+    summary: 'The small daily habits, rhythms, and environments that keep me balanced.',
+    sections: [
+      {
+        heading: 'Slow, intentional mornings',
+        points: [
+          'Wake up without immediately reaching for my phone',
+          'Drink a full glass of water and give myself ten quiet minutes to wake up',
+          'Pick one or two priorities for the day so I do not feel scattered',
+          'Keep my space tidy first thing; an orderly room clears my head',
+        ],
+      },
+      {
+        heading: 'Midday pacing',
+        points: [
+          'Take real breaks away from my desk instead of pushing through exhaustion',
+          'Step outside for fresh air and sunlight when my focus starts fading',
+          'Eat proper meals slowly rather than rushing through lunch',
+          'Check in with my energy levels and adjust my pace accordingly',
+        ],
+      },
+      {
+        heading: 'My personal environment',
+        points: [
+          'Keep only what I genuinely use and appreciate on my desk and in my room',
+          'Prefer warm, calm lighting and minimal distractions around me',
+          'Keep a notebook and pen within arm’s reach for random thoughts',
+          'Surround myself with things that feel personal and grounded rather than loud',
+        ],
+      },
+      {
+        heading: 'Winding down at night',
+        points: [
+          'Dim the lights and put away distractions an hour before bed',
+          'Jot down a few lines about what went well today or what is on my mind',
+          'Leave tomorrow’s worries on paper so I do not carry them to sleep',
+          'Treat rest as an essential part of the work, not a reward for burning out',
+        ],
+      },
+      {
+        heading: 'Weekly resets',
+        points: [
+          'Use Sunday afternoons to clean my space, do laundry, and reset for the week',
+          'Review how I spent my time and whether it matched what I care about',
+          'Plan meals and errands ahead so weekdays feel lighter',
+          'Make sure every week includes time with zero obligations',
+        ],
+      },
+    ],
+  },
+  {
+    slug: 'failures-and-lessons',
+    title: 'Failures & Lessons',
+    summary: 'Honest reflections on missteps, hard days, and what they taught me about myself.',
+    sections: [
+      {
+        heading: 'Waiting until I felt completely ready',
+        points: [
+          'I used to hold back from starting things because I wanted everything to be perfect first',
+          'Waiting for confidence before taking action kept me stuck in place',
+          'Confidence only shows up after you take the first awkward step',
+          'Starting small and imperfect beats staying safe on the sidelines',
+        ],
+      },
+      {
+        heading: 'Keeping everything bottled up',
+        points: [
+          'Trying to carry stress alone only made small problems feel heavier',
+          'Learning to talk honestly with people I trust took pressure off my shoulders',
+          'Asking for help or advice is a sign of maturity, not weakness',
+          'You do not have to go through every hard season by yourself',
+        ],
+      },
+      {
+        heading: 'Saying yes out of guilt',
+        points: [
+          'Overcommitting left me drained and resentful of things I agreed to do',
+          'A polite, honest no respects both my time and the other person’s time',
+          'Protecting my energy makes me more present for the commitments I do keep',
+          'You cannot pour into anything if your own cup is empty',
+        ],
+      },
+      {
+        heading: 'Measuring myself against other people',
+        points: [
+          'Comparing my behind-the-scenes to someone else’s highlight reel never helped',
+          'Everyone carries struggles and timelines you cannot see from the outside',
+          'The only fair comparison is who I was six months or a year ago',
+          'Stay in your own lane and water your own grass',
+        ],
+      },
+      {
+        heading: 'Rushing through seasons of growth',
+        points: [
+          'Impatience made me overlook small wins happening right in front of me',
+          'Some lessons only sink in after making the same mistake twice',
+          'Slow progress is still progress as long as I keep showing up',
+          'Trusting the process gets easier once you look back at how far you have come',
+        ],
+      },
+    ],
+  },
+  {
     slug: 'things-i-believe',
     title: 'Things I believe',
     summary: 'The small principles I try to build and work by.',

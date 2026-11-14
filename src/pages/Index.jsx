@@ -6,6 +6,35 @@ import { USERNAME, X_URL, ROLES, BIO, NOTES, POSTS } from '../data/site'
 
 const ease = [0.22, 1, 0.36, 1]
 
+// How many notes the home page shows (the rest live on the Notes page)
+const HOME_NOTES = 8
+
+// Words in the bio that become links (matched exactly as written, case-sensitive)
+const BIO_LINKS = {
+  Figma: 'https://www.figma.com/',
+  Vercel: 'https://vercel.com/',
+}
+const BIO_LINK_PATTERN = new RegExp(`(${Object.keys(BIO_LINKS).join('|')})`)
+
+// Turns a bio paragraph into text with clickable words
+function renderBio(text) {
+  return text.split(BIO_LINK_PATTERN).map((part, i) =>
+    Object.hasOwn(BIO_LINKS, part) ? (
+      <a
+        key={i}
+        href={BIO_LINKS[part]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[#f5945c] no-underline transition-opacity duration-300 hover:opacity-75"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+}
+
 // Parent: reveals its children one after another
 const container = {
   hidden: {},
@@ -49,6 +78,8 @@ const row = {
 
 export default function Index() {
   const snippets = POSTS.slice(0, 3)
+  const homeNotes = NOTES.slice(0, HOME_NOTES)
+  const hasMoreNotes = NOTES.length > HOME_NOTES
 
   // Start the animation only after Geist is loaded, so the text never
   // changes font in the middle of it. The 1.5s timeout is a safety net.
@@ -111,18 +142,18 @@ export default function Index() {
             className="max-w-[32rem] space-y-4 leading-[1.85] tracking-[0.02em] text-muted no-underline"
           >
             {BIO.map((paragraph, i) => (
-              <p key={i}>{paragraph}</p>
+              <p key={i}>{renderBio(paragraph)}</p>
             ))}
           </motion.div>
         </motion.div>
 
         {/* ---------- Right: notes + blog ---------- */}
         <motion.div className="min-w-0 space-y-14" variants={containerRight}>
-          {/* Notes: two columns, square bullets, each links to its own page */}
+          {/* Notes: first 8 only, two columns, square bullets, each links to its own page */}
           <motion.section variants={item}>
             <h2 className="mb-6 text-xl font-medium text-fg">Notes</h2>
             <motion.ul className="gap-x-10 sm:columns-2" variants={list}>
-              {NOTES.map((note) => (
+              {homeNotes.map((note) => (
                 <motion.li
                   key={note.slug}
                   variants={row}
@@ -141,6 +172,16 @@ export default function Index() {
                 </motion.li>
               ))}
             </motion.ul>
+
+            {/* Only appears when there are more notes than the home page shows */}
+            {hasMoreNotes && (
+              <Link
+                to="/notes"
+                className="link-line mt-4 inline-block text-sm tracking-[0.02em] text-muted hover:text-fg"
+              >
+                All notes →
+              </Link>
+            )}
           </motion.section>
 
           {/* Blog: latest 3, each opens its own post */}

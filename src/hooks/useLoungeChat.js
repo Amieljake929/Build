@@ -2,50 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { getDevice } from '../lib/visitor'
 import { maskBadWords } from '../lib/chat'
+import { getGeo } from '../lib/geo'
 
 const PAGE = 50
 
 // Captcha is only used when a Turnstile site key is set in the env variables
 const CAPTCHA_ON = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY)
-
-// Visitor's city/country.
-// 1) /api/geo is a Vercel Function that reads Vercel's location headers (live site).
-// 2) That function doesn't exist on localhost, so while developing we fall back to a
-//    free IP lookup (ipwho.is). The fallback is removed from the production build.
-let geoPromise
-function getGeo() {
-  if (!geoPromise) {
-    geoPromise = loadGeo().catch(() => ({ city: '', country: '' }))
-  }
-  return geoPromise
-}
-
-async function loadGeo() {
-  const clean = (city, country) => ({
-    city: String(city || '').slice(0, 60),
-    country: String(country || '').slice(0, 4),
-  })
-
-  try {
-    const res = await fetch('/api/geo')
-    const type = res.headers.get('content-type') || ''
-    // On localhost Vite answers with the web page (HTML), not JSON, so check the type
-    if (res.ok && type.includes('application/json')) {
-      const g = await res.json()
-      if (g.city || g.country) return clean(g.city, g.country)
-    }
-  } catch {
-    /* not available here, try the dev fallback below */
-  }
-
-  if (import.meta.env.DEV) {
-    const res = await fetch('https://ipwho.is/')
-    const g = await res.json()
-    if (g.success !== false) return clean(g.city, g.country_code)
-  }
-
-  return clean('', '')
-}
 
 // Visitors only get an anonymous account when they send their first message
 async function ensureSession(captchaToken) {
@@ -166,6 +128,8 @@ export default function useLoungeChat() {
             body,
             city: geo.city || null,
             country: geo.country || null,
+            lat: geo.lat,
+            lng: geo.lng,
             device: getDevice(),
           })
           .select()

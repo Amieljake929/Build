@@ -20,9 +20,20 @@ function NoteList() {
                 to={`/notes/${note.slug}`}
                 className="group block border-t border-line py-[1.2rem]"
               >
-                <span className="block text-fg transition-colors duration-400 ease-soft group-hover:text-accent">
-                  {note.title}
+                <span className="flex items-baseline justify-between gap-4">
+                  <span className="text-fg transition-colors duration-400 ease-soft group-hover:text-accent">
+                    {note.title}
+                  </span>
+
+                  {/* Hint that the note opens and has more inside */}
+                  <span
+                    className="shrink-0 text-sm text-muted transition-[translate,color] duration-400 ease-soft group-hover:translate-x-1 group-hover:text-accent"
+                    aria-hidden="true"
+                  >
+                    →
+                  </span>
                 </span>
+
                 <span className="mt-2 block text-sm leading-[1.7] tracking-[0.02em] text-muted">
                   {note.summary}
                 </span>
