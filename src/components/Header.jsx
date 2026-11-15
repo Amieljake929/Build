@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { MessageSquare } from 'lucide-react'
 import { NAV_LINKS } from '../data/site'
 import usePresence from '../hooks/usePresence'
 import PresenceBadge from './PresenceBadge'
@@ -12,16 +13,16 @@ const fadeEase = [0.32, 0.72, 0, 1]
 // How far the sidebar drifts in from the left while it fades (px)
 const SLIDE_DISTANCE = 40
 
-// TUNES is shown below LOUNGE instead of in the main list, so it is
-// filtered out of the main links (it doesn't matter if it is also in NAV_LINKS)
-const TUNES_PATH = '/tunes'
-const MAIN_LINKS = NAV_LINKS.filter((link) => link.to !== TUNES_PATH)
-
 // Links keep their text left-aligned.
 const menuLinkClass = ({ isActive }) =>
   `relative inline-block py-1 text-xl font-normal tracking-brand uppercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1.5 hover:text-fg sm:text-2xl ${
     isActive ? 'text-fg' : 'text-muted'
   }`
+
+// The Lounge button: small lowercase text, normal letter spacing, chat icon first
+// The Lounge button: lowercase text with normal letter spacing, chat icon first
+const loungeClass =
+  'relative inline-flex items-center gap-3 py-1 text-base tracking-normal text-muted lowercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1 hover:text-fg sm:text-lg'
 
 // Shared by the two menu-icon lines
 const lineBase =
@@ -121,7 +122,7 @@ export default function Header() {
               >
                 <div className="my-auto flex flex-col items-start gap-10 lg:mx-auto">
                   <nav className="flex flex-col items-start gap-6" aria-label="Primary">
-                    {MAIN_LINKS.map((link, i) => (
+                    {NAV_LINKS.map((link, i) => (
                       <div key={link.to}>
                         <motion.div
                           initial={{ opacity: 0, y: 12 }}
@@ -152,7 +153,7 @@ export default function Header() {
                     ))}
                   </nav>
 
-                  {/* Below the divider: live viewer count, then LOUNGE and TUNES (text only).
+                  {/* Below the divider: live viewer count, then the Lounge button.
                       The line is as wide as the link list above it. */}
                   <motion.div
                     className="flex flex-col items-start gap-4 self-stretch border-t border-line pt-8"
@@ -162,7 +163,7 @@ export default function Header() {
                       y: 0,
                       transition: {
                         duration: 0.6,
-                        delay: 0.15 + MAIN_LINKS.length * 0.06,
+                        delay: 0.15 + NAV_LINKS.length * 0.06,
                         ease: fadeEase,
                       },
                     }}
@@ -170,30 +171,14 @@ export default function Header() {
                   >
                     <PresenceBadge count={presence.count} seeds={presence.seeds} />
 
-                    <div className="flex flex-col items-start gap-6">
-                      <button
-                        type="button"
-                        onClick={openLounge}
-                        className={menuLinkClass({ isActive: false })}
-                      >
-                        Lounge
-                      </button>
-
-                      <NavLink
-                        to={TUNES_PATH}
-                        className={menuLinkClass}
-                        onClick={() => setOpen(false)}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            Tunes
-                            {isActive && (
-                              <span className="absolute -bottom-0.5 left-0 h-px w-5 bg-accent" />
-                            )}
-                          </>
-                        )}
-                      </NavLink>
-                    </div>
+                    <button type="button" onClick={openLounge} className={loungeClass}>
+                      <MessageSquare
+                        className="size-[1.15em] shrink-0"
+                        strokeWidth={1.5}
+                        aria-hidden="true"
+                      />
+                      Lounge
+                    </button>
                   </motion.div>
                 </div>
               </motion.aside>

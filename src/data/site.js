@@ -18,7 +18,6 @@ export const NAV_LINKS = [
   { label: 'Notes', to: '/notes' },
   { label: 'Blog', to: '/blog' },
   { label: 'Reach', to: '/reach' },
-  {label: 'Tunes', to: '/tunes' },
 ]
 
 // Used on the Reach page (and by Footer if you bring it back).
