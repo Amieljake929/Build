@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MessageSquare } from 'lucide-react'
 import { NAV_LINKS } from '../data/site'
 import usePresence from '../hooks/usePresence'
 import PresenceBadge from './PresenceBadge'
@@ -12,6 +11,11 @@ const fadeEase = [0.32, 0.72, 0, 1]
 
 // How far the sidebar drifts in from the left while it fades (px)
 const SLIDE_DISTANCE = 40
+
+// TUNES is shown below LOUNGE instead of in the main list, so it is
+// filtered out of the main links (it doesn't matter if it is also in NAV_LINKS)
+const TUNES_PATH = '/tunes'
+const MAIN_LINKS = NAV_LINKS.filter((link) => link.to !== TUNES_PATH)
 
 // Links keep their text left-aligned.
 const menuLinkClass = ({ isActive }) =>
@@ -117,7 +121,7 @@ export default function Header() {
               >
                 <div className="my-auto flex flex-col items-start gap-10 lg:mx-auto">
                   <nav className="flex flex-col items-start gap-6" aria-label="Primary">
-                    {NAV_LINKS.map((link, i) => (
+                    {MAIN_LINKS.map((link, i) => (
                       <div key={link.to}>
                         <motion.div
                           initial={{ opacity: 0, y: 12 }}
@@ -148,36 +152,48 @@ export default function Header() {
                     ))}
                   </nav>
 
-                  {/* Lounge: live viewer count on top, trigger button below it */}
+                  {/* Below the divider: live viewer count, then LOUNGE and TUNES (text only).
+                      The line is as wide as the link list above it. */}
                   <motion.div
-                    className="flex flex-col items-start gap-4"
+                    className="flex flex-col items-start gap-4 self-stretch border-t border-line pt-8"
                     initial={{ opacity: 0, y: 12 }}
                     animate={{
                       opacity: 1,
                       y: 0,
                       transition: {
                         duration: 0.6,
-                        delay: 0.15 + NAV_LINKS.length * 0.06,
+                        delay: 0.15 + MAIN_LINKS.length * 0.06,
                         ease: fadeEase,
                       },
                     }}
                     exit={{ opacity: 0, transition: { duration: 0.25 } }}
                   >
                     <PresenceBadge count={presence.count} seeds={presence.seeds} />
-                    <button
-                      type="button"
-                      onClick={openLounge}
-                      className={menuLinkClass({ isActive: false })}
-                    >
-                      <span className="inline-flex items-center gap-3">
-                        <MessageSquare
-                          className="size-[0.9em]"
-                          strokeWidth={1.5}
-                          aria-hidden="true"
-                        />
+
+                    <div className="flex flex-col items-start gap-6">
+                      <button
+                        type="button"
+                        onClick={openLounge}
+                        className={menuLinkClass({ isActive: false })}
+                      >
                         Lounge
-                      </span>
-                    </button>
+                      </button>
+
+                      <NavLink
+                        to={TUNES_PATH}
+                        className={menuLinkClass}
+                        onClick={() => setOpen(false)}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            Tunes
+                            {isActive && (
+                              <span className="absolute -bottom-0.5 left-0 h-px w-5 bg-accent" />
+                            )}
+                          </>
+                        )}
+                      </NavLink>
+                    </div>
                   </motion.div>
                 </div>
               </motion.aside>

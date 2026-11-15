@@ -7,6 +7,7 @@ import Builds from './pages/Builds'
 import Notes from './pages/Notes'
 import Blog from './pages/Blog'
 import Resources from './pages/Resources'
+import Tunes from './pages/Tunes'
 import Reach from './pages/Reach'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/notes/:slug?" element={<Notes />} />
             <Route path="/blog/:slug?" element={<Blog />} />
             <Route path="/resources" element={<Resources />} />
+            <Route path="/tunes" element={<Tunes />} />
             <Route path="/reach" element={<Reach />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

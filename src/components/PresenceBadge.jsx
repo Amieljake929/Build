@@ -7,9 +7,10 @@ export default function PresenceBadge({ count, seeds }) {
   return (
     <div className="flex flex-col items-start gap-2.5" aria-live="polite">
       <div className="flex -space-x-2">
-        {seeds.map((seed) => (
+        {seeds.map((seed, i) => (
           <img
-            key={seed}
+            // Two viewers can share a name (e.g. you on phone + desktop), so the name alone isn't unique
+            key={`${seed}-${i}`}
             src={avatarUri(seed)}
             alt=""
             className="size-6 rounded-full bg-white ring-2 ring-bg"

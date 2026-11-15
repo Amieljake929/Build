@@ -6,6 +6,9 @@ import { getGeo } from '../lib/geo'
 
 const PAGE = 50
 
+// The owner account you created in Supabase (Authentication -> Users)
+const OWNER_EMAIL = 'amieljakebaril@gmail.com'
+
 // Captcha is only used when a Turnstile site key is set in the env variables
 const CAPTCHA_ON = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY)
 
@@ -29,7 +32,52 @@ export default function useLoungeChat() {
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [isOwner, setIsOwner] = useState(false)
+  const [ownerReady, setOwnerReady] = useState(false) // true once the first owner check has finished
   const seen = useRef(new Set())
+
+  // Asks the database whether this browser is logged in as the owner (the database is the source of truth)
+  const refreshOwner = useCallback(async () => {
+    let ok = false
+    try {
+      if (supabase) {
+        const { data } = await supabase.auth.getSession()
+        if (data.session) {
+          const { data: res, error: err } = await supabase.rpc('is_lounge_owner')
+          ok = !err && res === true
+        }
+      }
+    } catch {
+      ok = false
+    }
+    setIsOwner(ok)
+    setOwnerReady(true)
+    return ok
+  }, [])
+
+  useEffect(() => {
+    refreshOwner()
+  }, [refreshOwner])
+
+  // Owner login (the password is never stored in the code). Returns true when it worked.
+  const ownerLogin = useCallback(
+    async (password) => {
+      if (!supabase || !password) return false
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: OWNER_EMAIL,
+        password,
+      })
+      if (err) return false
+      return refreshOwner()
+    },
+    [refreshOwner],
+  )
+
+  const ownerLogout = useCallback(async () => {
+    if (!supabase) return
+    await supabase.auth.signOut()
+    setIsOwner(false)
+  }, [])
 
   // Adds one new message (from realtime or from our own send), ignoring duplicates
   const addMessage = useCallback((msg) => {
@@ -106,7 +154,8 @@ export default function useLoungeChat() {
     setLoadingOlder(false)
   }, [messages, hasMore, loadingOlder])
 
-  // Sends a message. Returns true when it worked.
+  // Sends a message. Returns true when it worked, false when it failed,
+  // or 'name' when the database refused the name (reserved or invalid).
   const send = useCallback(
     async (name, raw, captchaToken) => {
       const body = maskBadWords(raw.trim()).slice(0, 280)
@@ -139,6 +188,10 @@ export default function useLoungeChat() {
         return true
       } catch (err) {
         const msg = err?.message ?? ''
+        if (/name not available|invalid name/i.test(msg)) {
+          setError('')
+          return 'name'
+        }
         setError(
           /slow down/i.test(msg)
             ? 'slow down a little'
@@ -154,5 +207,19 @@ export default function useLoungeChat() {
     [addMessage],
   )
 
-  return { messages, total, loading, hasMore, loadingOlder, sending, error, send, loadOlder }
+  return {
+    messages,
+    total,
+    loading,
+    hasMore,
+    loadingOlder,
+    sending,
+    error,
+    send,
+    loadOlder,
+    isOwner,
+    ownerReady,
+    ownerLogin,
+    ownerLogout,
+  }
 }
