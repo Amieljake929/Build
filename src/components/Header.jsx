@@ -177,7 +177,7 @@ export default function Header() {
                         strokeWidth={1.5}
                         aria-hidden="true"
                       />
-                      Lounge
+                      Global Lounge
                     </button>
                   </motion.div>
                 </div>

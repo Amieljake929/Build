@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import LoungeChat from './LoungeChat'
+import LoungeInfo from './LoungeInfo'
 import LoungeStars from './LoungeStars'
 import useDesktop from '../hooks/useDesktop'
 
@@ -102,6 +103,9 @@ export default function Lounge({ onClose }) {
           </div>
         )}
       </motion.div>
+
+      {/* Info button (top right) and its panel */}
+      <LoungeInfo />
 
       <Credit />
     </motion.div>

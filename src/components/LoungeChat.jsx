@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Laptop, MessageSquare, Smartphone } from 'lucide-react'
+import { Laptop, Loader2, MessageSquare, Smartphone, Square, Volume2 } from 'lucide-react'
 import useLoungeChat from '../hooks/useLoungeChat'
+import useXana from '../hooks/useXana'
 import { supabase } from '../lib/supabase'
 import { avatarUri } from '../lib/avatar'
 import { timeAgo } from '../lib/chat'
+import { XANA_NAME } from '../lib/xana'
 import {
   OWNER_COMMAND,
   OWNER_NAME,
@@ -17,8 +19,10 @@ import {
 
 const ease = [0.22, 1, 0.36, 1]
 
-// Amiel's orange (name + bubble outline)
+// Amiel's orange (name and bubble outline)
 const OWNER_COLOR = '#f5945c'
+// Avatar border: a slightly darker orange (make it darker by lowering the values, lighter by raising them)
+const OWNER_AVATAR_BORDER = '#dd7a40'
 // Owner bubble: a soft orange tint with an orange outline (change the numbers to taste)
 const OWNER_BUBBLE_FILL = 'rgba(245, 148, 92, 0.2)'
 const OWNER_BUBBLE_BORDER = 'rgba(245, 148, 92, 0.75)'
@@ -27,22 +31,50 @@ const OWNER_BUBBLE_BORDER = 'rgba(245, 148, 92, 0.75)'
 const canAutoFocus = () =>
   typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
-function Message({ m, now }) {
+// Terminal / CLI icon (rounded screen with a ">_" prompt). Only the owner gets this one.
+function TerminalIcon({ className }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="2" y="4" width="20" height="16" rx="4" />
+      <path d="M7 9.5 10.5 12 7 14.5" />
+      <path d="M13.5 15h3.5" />
+    </svg>
+  )
+}
+
+// voice: 'idle' | 'loading' | 'playing' (for this message only)
+function Message({ m, now, voice, onVoice }) {
   const place = [m.city, m.country].filter(Boolean).join(', ')
-  const DeviceIcon = m.device === 'mobile' ? Smartphone : Laptop
   // Only the owner can use these names (the database enforces it), so these messages are Amiel's
   const isOwnerMsg = isReservedName(m.name)
+  // Everyone else gets the icon for the device they actually used; the owner always gets the terminal
+  const DeviceIcon = isOwnerMsg ? TerminalIcon : m.device === 'mobile' ? Smartphone : Laptop
+
+  const active = voice !== 'idle'
+  const VoiceIcon = voice === 'loading' ? Loader2 : voice === 'playing' ? Square : Volume2
+  const voiceLabel = active ? `Stop ${XANA_NAME}` : `Listen with ${XANA_NAME}`
 
   return (
     <motion.li
-      className="flex items-end gap-2.5 sm:gap-3"
+      className="group flex items-end gap-2.5 sm:gap-3"
       initial={m.fresh ? { opacity: 0, y: 10 } : false}
       animate={{ opacity: 1, y: 0, transition: { duration: 0.35, ease } }}
     >
       <img
         src={avatarUri(m.name)}
         alt=""
-        className="size-7 shrink-0 rounded-full bg-white sm:size-8"
+        // Owner only: a simple circular border drawn inside the avatar, so the list can't clip it
+        className={`size-7 shrink-0 rounded-full bg-white sm:size-8 ${isOwnerMsg ? 'border-2' : ''}`}
+        style={isOwnerMsg ? { borderColor: OWNER_AVATAR_BORDER } : undefined}
       />
       <div className="min-w-0">
         <p className="mb-1 flex flex-wrap items-center gap-x-1.5 text-[0.7rem] text-white/40 sm:text-xs">
@@ -62,18 +94,37 @@ function Message({ m, now }) {
           <span className="text-white/20">·</span>
           <span>{timeAgo(m.created_at, now)}</span>
         </p>
-        <p
-          className={`inline-block max-w-full rounded-2xl border px-3.5 py-2 text-sm leading-snug text-white [overflow-wrap:anywhere] sm:px-4 sm:py-2.5 sm:text-[0.95rem] ${
-            isOwnerMsg ? '' : 'border-transparent bg-white/10'
-          }`}
-          style={
-            isOwnerMsg
-              ? { backgroundColor: OWNER_BUBBLE_FILL, borderColor: OWNER_BUBBLE_BORDER }
-              : undefined
-          }
-        >
-          {m.body}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p
+            className={`inline-block min-w-0 max-w-full rounded-2xl border px-3.5 py-2 text-sm leading-snug text-white [overflow-wrap:anywhere] sm:px-4 sm:py-2.5 sm:text-[0.95rem] ${
+              isOwnerMsg ? '' : 'border-transparent bg-white/10'
+            }`}
+            style={
+              isOwnerMsg
+                ? { backgroundColor: OWNER_BUBBLE_FILL, borderColor: OWNER_BUBBLE_BORDER }
+                : undefined
+            }
+          >
+            {m.body}
+          </p>
+          {/* Xaña's read-aloud button: shows on hover (always on touch screens), and while she is reading */}
+          <button
+            type="button"
+            onClick={onVoice}
+            title={voiceLabel}
+            aria-label={voiceLabel}
+            className={`flex size-6 shrink-0 items-center justify-center rounded-full text-white/50 transition-all duration-200 hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline-none [@media(pointer:coarse)]:opacity-100 ${
+              active ? 'opacity-100 text-white' : 'opacity-0 group-hover:opacity-100'
+            }`}
+          >
+            <VoiceIcon
+              className={`size-3.5 ${voice === 'loading' ? 'animate-spin' : ''} ${
+                voice === 'playing' ? 'fill-current' : ''
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
     </motion.li>
   )
@@ -81,6 +132,7 @@ function Message({ m, now }) {
 
 export default function LoungeChat() {
   const chat = useLoungeChat()
+  const xana = useXana()
   const [name, setName] = useState(() => getStoredName())
   const [editingName, setEditingName] = useState(() => !getStoredName())
   const [nameDraft, setNameDraft] = useState(() => getStoredName())
@@ -212,6 +264,18 @@ export default function LoungeChat() {
 
   const nameIsOwner = isReservedName(name)
 
+  // The small line under the input: errors in red, Xaña's status in grey
+  const formError = editingName || ownerMode ? nameError : chat.error
+  const xanaLine =
+    formError || editingName || ownerMode
+      ? ''
+      : xana.note ||
+        (xana.status === 'loading'
+          ? `${XANA_NAME} is getting ready…`
+          : xana.status === 'playing'
+            ? `${XANA_NAME} is reading…`
+            : '')
+
   return (
       <div className="flex h-[min(calc(100dvh-10rem),31rem)] w-full flex-col sm:h-[min(calc(100dvh-7rem),38rem)]">
       {/* Header: total message count */}
@@ -245,7 +309,13 @@ export default function LoungeChat() {
             )}
             <ul className="space-y-3.5 pt-2 pb-2 sm:space-y-4">
               {chat.messages.map((m) => (
-                <Message key={m.id} m={m} now={now} />
+                <Message
+                  key={m.id}
+                  m={m}
+                  now={now}
+                  voice={xana.activeId === m.id ? xana.status : 'idle'}
+                  onVoice={() => xana.speak(m.id, m.body)}
+                />
               ))}
             </ul>
           </>
@@ -355,8 +425,11 @@ export default function LoungeChat() {
           </form>
         )}
         {/* Small inline message under the input */}
-        <p className="mt-2 h-4 text-xs text-red-400/80" role="status">
-          {editingName || ownerMode ? nameError : chat.error}
+        <p
+          className={`mt-2 h-4 text-xs ${formError ? 'text-red-400/80' : 'text-white/40'}`}
+          role="status"
+        >
+          {formError || xanaLine}
         </p>
       </div>
     </div>

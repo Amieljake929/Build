@@ -3,7 +3,7 @@ const NAME_KEY = 'lounge:name'
 
 // The owner (you). These names can only be used while logged in as the owner.
 export const OWNER_NAME = 'Amiel'
-export const OWNER_COMMAND = '/owner' // type this in the name box to get the owner login
+export const OWNER_COMMAND = '/lukaschiang' // type this in the name box to get the owner login
 const RESERVED = new Set(['amiel', 'amieljake', 'amieljakebaril', 'amielbaril'])
 
 // Letters (including accented Latin letters) separated by single spaces. No numbers, emoji or symbols.
