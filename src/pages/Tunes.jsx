@@ -13,33 +13,14 @@ const FALLBACK_PROFILE = {
 
 const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
 
-// Minimal pill-style scrollbar for this page only (applied to <html> while Tunes is mounted).
-// Thin track + rounded thumb, no arrows. Both fade in while scrolling and fade out smoothly
-// ~0.9s after the visitor stops. Thumb color is #f5945c.
-const scrollCss = `
-html.tunes-page { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-html.tunes-page[data-scrolling="true"] { scrollbar-color: #f5945c transparent; }
-@supports selector(::-webkit-scrollbar) {
-  html.tunes-page { scrollbar-width: auto; scrollbar-color: auto; }
-  html.tunes-page::-webkit-scrollbar { width: 12px; }
-  html.tunes-page::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-  html.tunes-page::-webkit-scrollbar-corner { background: transparent; }
-  html.tunes-page::-webkit-scrollbar-track {
-    background-color: transparent;
-    border-radius: 999px;
-    transition: background-color 0.5s ease;
+// On desktop the page itself is locked (no page scroll) so only the right column scrolls.
+// Applied to <html> only while Tunes is mounted. On mobile the page scrolls normally.
+const pageCss = `
+@media (min-width: 1024px) {
+  html.tunes-page,
+  html.tunes-page body {
+    overflow: hidden;
   }
-  html.tunes-page::-webkit-scrollbar-thumb {
-    background-color: transparent;
-    background-clip: padding-box;
-    border: 3px solid transparent;
-    border-radius: 999px;
-    transition: background-color 0.5s ease;
-  }
-  html.tunes-page[data-scrolling="true"]::-webkit-scrollbar-track { background-color: rgb(128 128 128 / 0.12); }
-  html.tunes-page[data-scrolling="true"]::-webkit-scrollbar-thumb,
-  html.tunes-page::-webkit-scrollbar-thumb:hover,
-  html.tunes-page::-webkit-scrollbar-thumb:active { background-color: #f5945c; }
 }
 `
 
@@ -86,6 +67,12 @@ function PlayerSkeleton({ className = '' }) {
 
 // Paused by default. When the song changes, the player loads the new one, and keeps
 // playing only if the visitor was already listening.
+//
+// Loading is sequential so the placeholder and the real player never overlap:
+//   1. placeholder is shown, the real player is invisible (but loading underneath)
+//   2. player is ready -> short wait so the cover art can paint
+//   3. placeholder fades out completely
+//   4. real player fades in, placeholder is removed from the DOM
 function SpotifyPlayer({ uri, fallbackUrl }) {
   const hostRef = useRef(null)
   const controllerRef = useRef(null)
@@ -93,7 +80,8 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
   const uriRef = useRef(uri)
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
-  // The placeholder is removed from the DOM completely once the real player is shown
+  const [skeletonFading, setSkeletonFading] = useState(false)
+  const [showPlayer, setShowPlayer] = useState(false)
   const [skeletonGone, setSkeletonGone] = useState(false)
 
   useEffect(() => {
@@ -105,7 +93,7 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     // Never keep the placeholder forever, even if the "ready" event is missed
     const fallbackTimer = setTimeout(() => {
       if (!cancelled) setReady(true)
-    }, 5000)
+    }, 4000)
 
     loadSpotifyApi()
       .then((api) => {
@@ -125,6 +113,10 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
             controller.addListener('playback_update', (e) => {
               playingRef.current = !e.data.isPaused
             })
+            // Also react to the iframe's own load event (helps on slow mobile networks)
+            host.querySelector('iframe')?.addEventListener('load', () => {
+              if (!cancelled) setReady(true)
+            })
           },
         )
       })
@@ -141,11 +133,18 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     }
   }, [])
 
-  // Once the real player is ready: quick fade, then remove the placeholder entirely
+  // Once the player is ready: wait a moment (cover art paints), fade the placeholder
+  // out fully, THEN fade the player in and remove the placeholder.
   useEffect(() => {
     if (!ready) return
-    const t = setTimeout(() => setSkeletonGone(true), 300)
-    return () => clearTimeout(t)
+    const t1 = setTimeout(() => setSkeletonFading(true), 500)
+    const t2 = setTimeout(() => setShowPlayer(true), 720)
+    const t3 = setTimeout(() => setSkeletonGone(true), 1100)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+    }
   }, [ready])
 
   useEffect(() => {
@@ -169,15 +168,19 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
   }
 
   return (
-    <div className="relative min-h-[152px]">
+    <div className="relative h-[152px] w-full">
+      {/* Real player: always in the DOM so it can load, invisible until it's time to show it */}
       <div
         ref={hostRef}
-        className="min-h-[152px] overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]"
+        className={`absolute inset-0 overflow-hidden rounded-[12px] transition-opacity duration-300 ease-out [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light] ${
+          showPlayer ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
       />
+      {/* Placeholder: sits on top, fades out completely before the player fades in */}
       {!skeletonGone && (
         <PlayerSkeleton
-          className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
-            ready ? 'opacity-0' : 'opacity-100'
+          className={`pointer-events-none absolute inset-0 w-full transition-opacity duration-200 ease-out ${
+            skeletonFading ? 'opacity-0' : 'opacity-100'
           }`}
         />
       )}
@@ -264,27 +267,36 @@ const emptyText = 'Not enough listening history yet.'
 
 export default function Tunes() {
   const { top, now } = useSpotify()
+  const gridRef = useRef(null)
+  const [gridHeight, setGridHeight] = useState(null)
 
-  // The page itself scrolls (left side stays sticky), so the whole Top Tracks list is
-  // always reachable with no cut-off. The styled scrollbar is applied to <html> only
-  // while this page is open, and shows while scrolling / fades out when idle.
+  // Desktop: lock the page scroll and give the grid a fixed height that fills the rest of
+  // the screen, so everything stays steady and only the right column scrolls.
+  // Mobile: nothing is locked, the page scrolls normally.
   useEffect(() => {
     const root = document.documentElement
     root.classList.add('tunes-page')
-    let timer
-    const onScroll = () => {
-      root.dataset.scrolling = 'true'
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        root.dataset.scrolling = 'false'
-      }, 900)
+
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const measure = () => {
+      if (!mq.matches || !gridRef.current) {
+        setGridHeight(null)
+        return
+      }
+      window.scrollTo(0, 0)
+      const top = gridRef.current.getBoundingClientRect().top
+      setGridHeight(Math.max(320, Math.floor(window.innerHeight - top - 32)))
     }
-    window.addEventListener('scroll', onScroll, { passive: true })
+
+    measure()
+    // Measure again after the page transition has settled
+    const settleTimer = setTimeout(measure, 800)
+    window.addEventListener('resize', measure)
+
     return () => {
-      window.removeEventListener('scroll', onScroll)
-      clearTimeout(timer)
+      clearTimeout(settleTimer)
+      window.removeEventListener('resize', measure)
       root.classList.remove('tunes-page')
-      delete root.dataset.scrolling
     }
   }, [])
 
@@ -295,98 +307,106 @@ export default function Tunes() {
 
   return (
     <PageTransition>
-      <style>{scrollCss}</style>
+      <style>{pageCss}</style>
 
       <PageTitle>Tunes</PageTitle>
 
       {/* Empty spacer: same height the old subtitle used, so nothing below moves */}
       <div className="h-[2.99rem]" aria-hidden="true" />
 
-      {/* lg:[zoom:1.1] = left/right content look like 110% browser zoom (title and menu stay 100%) */}
-      <div className="mx-auto grid w-full max-w-[64rem] gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24 lg:[zoom:1.1]">
-        {/* Left: profile + listen-only player (stays in place while the page scrolls) */}
-        <div className="lg:sticky lg:top-8 lg:self-start">
-          <Profile profile={profile} />
+      {/* Zoom is applied to the inner content of each column (left 1.1, right 0.99 = 0.9 x 1.1),
+          not to the grid, so the grid's height and the right column's scrolling stay exact. */}
+      <div
+        ref={gridRef}
+        style={gridHeight ? { height: gridHeight } : undefined}
+        className="mx-auto grid w-full max-w-[70rem] gap-14 pb-16 lg:grid-cols-[minmax(0,26.4rem)_minmax(0,1fr)] lg:gap-[6.6rem] lg:overflow-hidden lg:pb-0"
+      >
+        {/* Left: profile + listen-only player (steady, never scrolls on desktop) */}
+        <div className="lg:self-start">
+          <div className="lg:[zoom:1.1]">
+            <Profile profile={profile} />
 
-          <div className="mt-10 pt-8">
-            <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
-              <span
-                className={`size-1.5 rounded-full ${isPlaying ? 'animate-pulse bg-accent' : 'bg-muted'}`}
-              />
-              {isPlaying ? 'Playing now' : 'Last played'}
-            </p>
+            <div className="mt-6">
+              <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
+                <span
+                  className={`size-1.5 rounded-full ${isPlaying ? 'animate-pulse bg-accent' : 'bg-muted'}`}
+                />
+                {isPlaying ? 'Playing now' : 'Last played'}
+              </p>
 
-            {now === null && <PlayerSkeleton />}
+              {now === null && <PlayerSkeleton />}
 
-            {track ? (
-              <>
-                <SpotifyPlayer uri={track.uri} fallbackUrl={track.url} />
-                <p className="mt-3 text-xs leading-[1.7] text-muted">
-                  Press play to listen. Play and pause only affect your own browser.
-                </p>
-              </>
-            ) : (
-              now && (
-                <p className="text-sm text-muted">
-                  My Spotify can&apos;t be reached right now. Check back soon.
-                </p>
-              )
-            )}
+              {track ? (
+                <>
+                  <SpotifyPlayer uri={track.uri} fallbackUrl={track.url} />
+                  <p className="mt-3 text-xs leading-[1.7] text-muted">
+                    Press play to listen. Play and pause only affect your own browser.
+                  </p>
+                </>
+              ) : (
+                now && (
+                  <p className="text-sm text-muted">
+                    My Spotify can&apos;t be reached right now. Check back soon.
+                  </p>
+                )
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right: top artists and tracks (full list, no cut-off).
-            lg:[zoom:0.9] = shrinks only this column, so it looks like 90% browser zoom while the page stays at 100% */}
-        <div className="flex min-w-0 flex-col gap-12 lg:[zoom:0.9]">
-          {top === null && <p className="text-sm text-muted">Loading…</p>}
+        {/* Right: the ONLY scrollable area on desktop, with the scrollbar hidden */}
+        <div className="min-w-0 overscroll-contain [scrollbar-width:none] lg:h-full lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
+          <div className="flex flex-col gap-12 lg:pb-8 lg:[zoom:0.99]">
+            {top === null && <p className="text-sm text-muted">Loading…</p>}
 
-          {top?.unavailable && (
-            <p className="text-sm text-muted">
-              My top artists and tracks can&apos;t be loaded right now. Check back soon.
-            </p>
-          )}
+            {top?.unavailable && (
+              <p className="text-sm text-muted">
+                My top artists and tracks can&apos;t be loaded right now. Check back soon.
+              </p>
+            )}
 
-          {topReady && (
-            <>
-              <ListSection title="Top Artists" label={top.artists.label}>
-                {top.artists.items.length === 0 && (
-                  <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
+            {topReady && (
+              <>
+                <ListSection title="Top Artists" label={top.artists.label}>
+                  {top.artists.items.length === 0 && (
+                    <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
+                  )}
+                  {top.artists.items.map((a, i) => (
+                    <Row key={a.id} index={i} href={a.url} image={a.image} title={a.name} />
+                  ))}
+                </ListSection>
+
+                <ListSection title="Top Tracks" label={top.tracks.label}>
+                  {top.tracks.items.length === 0 && (
+                    <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
+                  )}
+                  {top.tracks.items.map((t, i) => (
+                    <Row
+                      key={t.id}
+                      index={i}
+                      href={t.url}
+                      image={t.image}
+                      round={false}
+                      title={t.name}
+                      subtitle={t.artists.map((a) => a.name).join(', ')}
+                    />
+                  ))}
+                </ListSection>
+
+                {top.stale && (
+                  <p className="text-xs text-muted">
+                    Showing a saved copy from{' '}
+                    {new Date(top.updatedAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                    .
+                  </p>
                 )}
-                {top.artists.items.map((a, i) => (
-                  <Row key={a.id} index={i} href={a.url} image={a.image} title={a.name} />
-                ))}
-              </ListSection>
-
-              <ListSection title="Top Tracks" label={top.tracks.label}>
-                {top.tracks.items.length === 0 && (
-                  <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
-                )}
-                {top.tracks.items.map((t, i) => (
-                  <Row
-                    key={t.id}
-                    index={i}
-                    href={t.url}
-                    image={t.image}
-                    round={false}
-                    title={t.name}
-                    subtitle={t.artists.map((a) => a.name).join(', ')}
-                  />
-                ))}
-              </ListSection>
-
-              {top.stale && (
-                <p className="text-xs text-muted">
-                  Showing a saved copy from{' '}
-                  {new Date(top.updatedAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                  .
-                </p>
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </PageTransition>
