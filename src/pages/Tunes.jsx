@@ -103,7 +103,14 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     )
   }
 
-  return <div ref={hostRef} className="min-h-[152px] overflow-hidden rounded-xl" />
+  // CHANGED: matches the embed's 12px radius and forces a light color scheme so the
+  // iframe background stays transparent (no white corners)
+  return (
+    <div
+      ref={hostRef}
+      className="min-h-[152px] overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]"
+    />
+  )
 }
 
 // ---- Small pieces ----
@@ -203,7 +210,8 @@ export default function Tunes() {
         What I listen to, live from my Spotify.
       </p>
 
-      <div className="grid w-full gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24">
+      {/* CHANGED: mx-auto + max-w-[64rem] centers the whole block */}
+      <div className="mx-auto grid w-full max-w-[64rem] gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24">
         {/* Left: profile + listen-only player */}
         <div>
           <Profile profile={profile} />
@@ -237,7 +245,8 @@ export default function Tunes() {
         </div>
 
         {/* Right: top artists and tracks */}
-        <div className="flex max-w-2xl flex-col gap-12">
+        {/* CHANGED: removed max-w-2xl, added min-w-0 */}
+        <div className="flex min-w-0 flex-col gap-12">
           {top === null && <p className="text-sm text-muted">Loading…</p>}
 
           {top?.unavailable && (
