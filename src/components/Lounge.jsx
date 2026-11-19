@@ -42,7 +42,8 @@ function Credit() {
 }
 
 export default function Lounge({ onClose }) {
-  // The globe is desktop only. Phones and tablets get the chat alone.
+  // The globe and the outer space background are desktop only.
+  // Phones and tablets get the chat alone (lighter, so it doesn't lag).
   const desktop = useDesktop()
 
   // Scroll lock + Esc to close
@@ -58,6 +59,7 @@ export default function Lounge({ onClose }) {
 
   return (
     <motion.div
+      // Same translucent + blurred backdrop as the typing test (desktop and mobile)
       className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-[#1a1a1a]/70 px-5 py-14 backdrop-blur-lg"
       style={{ fontFamily: "'Geist', 'Geist Variable', ui-sans-serif, system-ui, sans-serif" }}
       role="dialog"
@@ -72,8 +74,8 @@ export default function Lounge({ onClose }) {
         if (!e.target.closest('[data-keep]')) onClose()
       }}
     >
-      {/* Outer space: stars over the blurred page */}
-      <LoungeStars />
+      {/* Outer space: stars over the blurred page (desktop only, never mounted on mobile) */}
+      {desktop && <LoungeStars />}
 
       {/* Phones have no Esc key, so hint at the tap-outside gesture */}
       <p className="pointer-events-none absolute inset-x-0 top-5 z-10 text-center text-[0.7rem] text-white/30 lg:hidden">
@@ -104,8 +106,8 @@ export default function Lounge({ onClose }) {
         )}
       </motion.div>
 
-      {/* Info button (top right) and its panel */}
-      <LoungeInfo />
+      {/* Info button (top right) and its panel (desktop only) */}
+      {desktop && <LoungeInfo />}
 
       <Credit />
     </motion.div>

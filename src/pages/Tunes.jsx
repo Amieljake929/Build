@@ -13,18 +13,33 @@ const FALLBACK_PROFILE = {
 
 const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
 
-// Minimal auto-hiding scrollbar for the right column: just a thin bar (no arrows),
-// hidden until the visitor scrolls. Color is #f5945c.
+// Minimal pill-style scrollbar for this page only (applied to <html> while Tunes is mounted).
+// Thin track + rounded thumb, no arrows. Both fade in while scrolling and fade out smoothly
+// ~0.9s after the visitor stops. Thumb color is #f5945c.
 const scrollCss = `
-.tunes-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-.tunes-scroll[data-scrolling="true"] { scrollbar-color: #f5945c transparent; }
+html.tunes-page { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+html.tunes-page[data-scrolling="true"] { scrollbar-color: #f5945c transparent; }
 @supports selector(::-webkit-scrollbar) {
-  .tunes-scroll { scrollbar-width: auto; scrollbar-color: auto; }
-  .tunes-scroll::-webkit-scrollbar { width: 6px; }
-  .tunes-scroll::-webkit-scrollbar-track { background: transparent; }
-  .tunes-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
-  .tunes-scroll::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 999px; transition: background-color 0.4s; }
-  .tunes-scroll[data-scrolling="true"]::-webkit-scrollbar-thumb { background-color: #f5945c; }
+  html.tunes-page { scrollbar-width: auto; scrollbar-color: auto; }
+  html.tunes-page::-webkit-scrollbar { width: 12px; }
+  html.tunes-page::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  html.tunes-page::-webkit-scrollbar-corner { background: transparent; }
+  html.tunes-page::-webkit-scrollbar-track {
+    background-color: transparent;
+    border-radius: 999px;
+    transition: background-color 0.5s ease;
+  }
+  html.tunes-page::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    background-clip: padding-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    transition: background-color 0.5s ease;
+  }
+  html.tunes-page[data-scrolling="true"]::-webkit-scrollbar-track { background-color: rgb(128 128 128 / 0.12); }
+  html.tunes-page[data-scrolling="true"]::-webkit-scrollbar-thumb,
+  html.tunes-page::-webkit-scrollbar-thumb:hover,
+  html.tunes-page::-webkit-scrollbar-thumb:active { background-color: #f5945c; }
 }
 `
 
@@ -78,6 +93,8 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
   const uriRef = useRef(uri)
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
+  // The placeholder is removed from the DOM completely once the real player is shown
+  const [skeletonGone, setSkeletonGone] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -124,6 +141,13 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     }
   }, [])
 
+  // Once the real player is ready: quick fade, then remove the placeholder entirely
+  useEffect(() => {
+    if (!ready) return
+    const t = setTimeout(() => setSkeletonGone(true), 300)
+    return () => clearTimeout(t)
+  }, [ready])
+
   useEffect(() => {
     uriRef.current = uri
     const controller = controllerRef.current
@@ -150,11 +174,13 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
         ref={hostRef}
         className="min-h-[152px] overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]"
       />
-      <PlayerSkeleton
-        className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${
-          ready ? 'opacity-0' : 'opacity-100'
-        }`}
-      />
+      {!skeletonGone && (
+        <PlayerSkeleton
+          className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
+            ready ? 'opacity-0' : 'opacity-100'
+          }`}
+        />
+      )}
     </div>
   )
 }
@@ -238,19 +264,29 @@ const emptyText = 'Not enough listening history yet.'
 
 export default function Tunes() {
   const { top, now } = useSpotify()
-  const hideTimer = useRef(null)
 
-  useEffect(() => () => clearTimeout(hideTimer.current), [])
-
-  // Shows the scrollbar while scrolling, hides it ~0.9s after the visitor stops
-  const onScroll = (e) => {
-    const el = e.currentTarget
-    el.dataset.scrolling = 'true'
-    clearTimeout(hideTimer.current)
-    hideTimer.current = setTimeout(() => {
-      el.dataset.scrolling = 'false'
-    }, 900)
-  }
+  // The page itself scrolls (left side stays sticky), so the whole Top Tracks list is
+  // always reachable with no cut-off. The styled scrollbar is applied to <html> only
+  // while this page is open, and shows while scrolling / fades out when idle.
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.add('tunes-page')
+    let timer
+    const onScroll = () => {
+      root.dataset.scrolling = 'true'
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        root.dataset.scrolling = 'false'
+      }, 900)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      clearTimeout(timer)
+      root.classList.remove('tunes-page')
+      delete root.dataset.scrolling
+    }
+  }, [])
 
   const topReady = top && !top.unavailable
   const profile = topReady ? top.profile : FALLBACK_PROFILE
@@ -268,11 +304,11 @@ export default function Tunes() {
 
       {/* lg:[zoom:1.1] = left/right content look like 110% browser zoom (title and menu stay 100%) */}
       <div className="mx-auto grid w-full max-w-[64rem] gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24 lg:[zoom:1.1]">
-        {/* Left: profile + listen-only player (stays in place) */}
+        {/* Left: profile + listen-only player (stays in place while the page scrolls) */}
         <div className="lg:sticky lg:top-8 lg:self-start">
           <Profile profile={profile} />
 
-          <div className="mt-10 border-t border-line pt-8">
+          <div className="mt-10 pt-8">
             <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
               <span
                 className={`size-1.5 rounded-full ${isPlaying ? 'animate-pulse bg-accent' : 'bg-muted'}`}
@@ -299,11 +335,9 @@ export default function Tunes() {
           </div>
         </div>
 
-        {/* Right: top artists and tracks (scrolls by itself on desktop) */}
-        <div
-          onScroll={onScroll}
-          className="tunes-scroll flex min-w-0 flex-col gap-12 lg:h-[36rem] lg:self-start lg:overflow-y-auto lg:pr-4"
-        >
+        {/* Right: top artists and tracks (full list, no cut-off).
+            lg:[zoom:0.9] = shrinks only this column, so it looks like 90% browser zoom while the page stays at 100% */}
+        <div className="flex min-w-0 flex-col gap-12 lg:[zoom:0.9]">
           {top === null && <p className="text-sm text-muted">Loading…</p>}
 
           {top?.unavailable && (

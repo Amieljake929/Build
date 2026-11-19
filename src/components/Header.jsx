@@ -14,8 +14,10 @@ const fadeEase = [0.32, 0.72, 0, 1]
 const SLIDE_DISTANCE = 40
 
 // Links keep their text left-aligned.
+// Font size: text-lg (mobile) / sm:text-xl (desktop). Make it bigger with text-xl / sm:text-2xl,
+// or smaller with text-base / sm:text-lg.
 const menuLinkClass = ({ isActive }) =>
-  `relative inline-block py-1 text-xl font-normal tracking-brand uppercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1.5 hover:text-fg sm:text-2xl ${
+  `relative inline-block py-1 text-lg font-normal tracking-brand uppercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1.5 hover:text-fg sm:text-xl ${
     isActive ? 'text-fg' : 'text-muted'
   }`
 
@@ -119,13 +121,13 @@ export default function Header() {
               <motion.aside
                 key="sidebar"
                 id="site-sidebar"
-                className="fixed inset-y-0 left-0 z-4 flex w-[78vw] max-w-72 flex-col border-r border-line bg-bg pt-(--pad-top) pb-[calc(var(--pad-top)_+_env(safe-area-inset-bottom,0px))] ps-(--page-x) pe-6 lg:w-[calc(var(--page-x)_+_14rem)] lg:max-w-none lg:ps-0 lg:pe-0"
+                className="fixed inset-y-0 left-0 z-4 flex w-[78vw] max-w-72 flex-col border-r border-line bg-bg pt-(--pad-top) pb-[calc(var(--pad-top)_+_env(safe-area-inset-bottom,0px))] px-6 lg:w-[calc(var(--page-x)_+_14rem)] lg:max-w-none lg:ps-0 lg:pe-0"
                 initial={{ opacity: 0, x: -SLIDE_DISTANCE }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -SLIDE_DISTANCE }}
                 transition={{ duration: 0.5, ease: fadeEase }}
               >
-                <div className="my-auto flex flex-col items-start gap-10 lg:mx-auto">
+                <div className="mx-auto my-auto flex flex-col items-start gap-10">
                   <nav className="flex flex-col items-start gap-6" aria-label="Primary">
                     {NAV_LINKS.map((link, i) => (
                       <div key={link.to}>
@@ -158,7 +160,7 @@ export default function Header() {
                     ))}
                   </nav>
 
-                  {/* Below the divider: live viewer count, the Lounge button, then Tunes.
+                  {/* Below the divider: live viewer count, then the Lounge + Tunes buttons.
                       The line is as wide as the link list above it. */}
                   <motion.div
                     className="flex flex-col items-start gap-4 self-stretch border-t border-line pt-8"
@@ -176,23 +178,27 @@ export default function Header() {
                   >
                     <PresenceBadge count={presence.count} seeds={presence.seeds} />
 
-                    <button type="button" onClick={openLounge} className={loungeClass}>
-                      <MessageSquare
-                        className="size-[1.15em] shrink-0"
-                        strokeWidth={1.5}
-                        aria-hidden="true"
-                      />
-                      Global Lounge
-                    </button>
+                    {/* Space between Global Lounge and Tunes: change gap-1
+                        (gap-0 = tightest, gap-2 = looser). */}
+                    <div className="flex flex-col items-start gap-1">
+                      <button type="button" onClick={openLounge} className={loungeClass}>
+                        <MessageSquare
+                          className="size-[1.15em] shrink-0"
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                        Global Lounge
+                      </button>
 
-                    <NavLink to="/tunes" onClick={() => setOpen(false)} className={tunesClass}>
-                      <Music
-                        className="size-[1.15em] shrink-0"
-                        strokeWidth={1.5}
-                        aria-hidden="true"
-                      />
-                      Tunes
-                    </NavLink>
+                      <NavLink to="/tunes" onClick={() => setOpen(false)} className={tunesClass}>
+                        <Music
+                          className="size-[1.15em] shrink-0"
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                        Tunes
+                      </NavLink>
+                    </div>
                   </motion.div>
                 </div>
               </motion.aside>

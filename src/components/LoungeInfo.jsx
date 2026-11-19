@@ -60,7 +60,8 @@ const SECTIONS = [
   },
 ]
 
-// The (i) button in the top right corner and the panel it opens
+// The (i) button in the top right corner and the panel it opens.
+// While the panel is open, the (i) turns into an X (close). When it closes, it turns back into the (i).
 export default function LoungeInfo() {
   const [open, setOpen] = useState(false)
   const panelRef = useRef(null)
@@ -82,20 +83,42 @@ export default function LoungeInfo() {
     if (open) panelRef.current?.focus()
   }, [open])
 
+  const label = open ? 'Close about the lounge' : 'About the lounge'
+
   return (
     <>
       <button
         type="button"
         data-keep
         onClick={() => setOpen((v) => !v)}
-        aria-label="About the lounge"
+        aria-label={label}
         aria-expanded={open}
-        title="About the lounge"
-        className={`fixed top-4 right-5 z-30 flex size-9 items-center justify-center rounded-full border border-white/10 backdrop-blur-md transition-colors duration-300 hover:bg-white/10 hover:text-white lg:top-8 lg:right-8 ${
+        title={label}
+        className={`fixed top-4 right-5 z-30 flex size-9 items-center justify-center overflow-hidden rounded-full border border-white/10 backdrop-blur-md transition-colors duration-300 hover:bg-white/10 hover:text-white lg:top-8 lg:right-8 ${
           open ? 'bg-white/10 text-white' : 'bg-white/5 text-white/55'
         }`}
       >
-        <Info className="size-4" aria-hidden="true" />
+        {/* The icon swaps with a small spin: (i) <-> X */}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={open ? 'close' : 'info'}
+            className="flex items-center justify-center"
+            initial={{ opacity: 0, rotate: open ? -90 : 90, scale: 0.6 }}
+            animate={{ opacity: 1, rotate: 0, scale: 1, transition: { duration: 0.2, ease } }}
+            exit={{
+              opacity: 0,
+              rotate: open ? 90 : -90,
+              scale: 0.6,
+              transition: { duration: 0.15, ease },
+            }}
+          >
+            {open ? (
+              <X className="size-4" aria-hidden="true" />
+            ) : (
+              <Info className="size-4" aria-hidden="true" />
+            )}
+          </motion.span>
+        </AnimatePresence>
       </button>
 
       {/* Clicking anywhere else closes the panel (and not the lounge) */}
@@ -115,21 +138,11 @@ export default function LoungeInfo() {
             exit={{ opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.2, ease } }}
             className="fixed top-16 right-5 z-30 max-h-[calc(100dvh-6rem)] w-[min(24rem,calc(100vw-2.5rem))] overflow-y-auto rounded-2xl border border-white/10 bg-[#1a1a1a]/90 p-5 shadow-2xl backdrop-blur-xl outline-none [scrollbar-width:none] lg:top-20 lg:right-8 [&::-webkit-scrollbar]:hidden"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-medium text-white">about the lounge</h2>
-                <p className="mt-1 text-xs leading-relaxed text-white/45">
-                  a small corner of the web where visitors say hi, and the globe shows where from.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="-mt-1 -mr-1 flex size-7 shrink-0 items-center justify-center rounded-full text-white/45 transition-colors duration-300 hover:bg-white/10 hover:text-white"
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
+            <div>
+              <h2 className="text-base font-medium text-white">about the lounge</h2>
+              <p className="mt-1 text-xs leading-relaxed text-white/45">
+                a small corner of the web where visitors say hi, and the globe shows where from.
+              </p>
             </div>
 
             {SECTIONS.map(({ icon: Icon, title, items, accent }) => (

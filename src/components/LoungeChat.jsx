@@ -27,9 +27,18 @@ const OWNER_AVATAR_BORDER = '#dd7a40'
 const OWNER_BUBBLE_FILL = 'rgba(245, 148, 92, 0.2)'
 const OWNER_BUBBLE_BORDER = 'rgba(245, 148, 92, 0.75)'
 
+// Mobile: how long (in ms) the visitor has to hold a message before the speaker shows up
+const LONG_PRESS_MS = 450
+// Mobile: if the finger moves more than this many px, it is a scroll, not a long press
+const LONG_PRESS_MOVE_PX = 10
+
 // Only auto-focus on devices with a real keyboard (a phone would pop its keyboard open)
 const canAutoFocus = () =>
   typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
+// Touch-only devices (phones / tablets). Desktop keeps the hover behavior.
+const isTouchDevice = () =>
+  typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
 // Terminal / CLI icon (rounded screen with a ">_" prompt). Only the owner gets this one.
 function TerminalIcon({ className }) {
@@ -52,7 +61,8 @@ function TerminalIcon({ className }) {
 }
 
 // voice: 'idle' | 'loading' | 'playing' (for this message only)
-function Message({ m, now, voice, onVoice }) {
+// touch: phone / tablet. The speaker only shows after a long press (revealed), not on hover.
+function Message({ m, now, voice, onVoice, touch, revealed, onReveal }) {
   const place = [m.city, m.country].filter(Boolean).join(', ')
   // Only the owner can use these names (the database enforces it), so these messages are Amiel's
   const isOwnerMsg = isReservedName(m.name)
@@ -62,6 +72,55 @@ function Message({ m, now, voice, onVoice }) {
   const active = voice !== 'idle'
   const VoiceIcon = voice === 'loading' ? Loader2 : voice === 'playing' ? Square : Volume2
   const voiceLabel = active ? `Stop ${XANA_NAME}` : `Listen with ${XANA_NAME}`
+
+  // ---- Long press (mobile only) ----
+  const pressTimer = useRef(null)
+  const pressStart = useRef({ x: 0, y: 0 })
+
+  const clearPress = () => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+  }
+
+  // Never leave a timer running if the message unmounts
+  useEffect(() => clearPress, [])
+
+  const pressProps = touch
+    ? {
+        onPointerDown: (e) => {
+          pressStart.current = { x: e.clientX, y: e.clientY }
+          clearPress()
+          pressTimer.current = setTimeout(() => {
+            pressTimer.current = null
+            if (navigator.vibrate) navigator.vibrate(10)
+            onReveal()
+          }, LONG_PRESS_MS)
+        },
+        onPointerMove: (e) => {
+          if (!pressTimer.current) return
+          const dx = e.clientX - pressStart.current.x
+          const dy = e.clientY - pressStart.current.y
+          if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_PX) clearPress()
+        },
+        onPointerUp: clearPress,
+        onPointerCancel: clearPress,
+        onPointerLeave: clearPress,
+        // Stops the browser's own long-press menu / text selection from popping up
+        onContextMenu: (e) => e.preventDefault(),
+      }
+    : {}
+
+  // Desktop: hover shows it. Mobile: long press shows it, and it stays while Xaña is reading.
+  const showVoice = touch ? revealed || active : active
+  const voiceVisibility = touch
+    ? showVoice
+      ? 'opacity-100'
+      : 'pointer-events-none opacity-0'
+    : active
+      ? 'opacity-100'
+      : 'opacity-0 group-hover:opacity-100'
 
   return (
     <motion.li
@@ -96,9 +155,10 @@ function Message({ m, now, voice, onVoice }) {
         </p>
         <div className="flex items-center gap-1.5">
           <p
+            {...pressProps}
             className={`inline-block min-w-0 max-w-full rounded-2xl border px-3.5 py-2 text-sm leading-snug text-white [overflow-wrap:anywhere] sm:px-4 sm:py-2.5 sm:text-[0.95rem] ${
               isOwnerMsg ? '' : 'border-transparent bg-white/10'
-            }`}
+            } ${touch ? 'select-none [-webkit-touch-callout:none]' : ''}`}
             style={
               isOwnerMsg
                 ? { backgroundColor: OWNER_BUBBLE_FILL, borderColor: OWNER_BUBBLE_BORDER }
@@ -107,14 +167,18 @@ function Message({ m, now, voice, onVoice }) {
           >
             {m.body}
           </p>
-          {/* Xaña's read-aloud button: shows on hover (always on touch screens), and while she is reading */}
+          {/* Xaña's read-aloud button.
+              Desktop: shows on hover (and while she is reading).
+              Mobile: shows after a long press on the message (and while she is reading). */}
           <button
             type="button"
+            data-voice-btn
             onClick={onVoice}
             title={voiceLabel}
             aria-label={voiceLabel}
-            className={`flex size-6 shrink-0 items-center justify-center rounded-full text-white/50 transition-all duration-200 hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline-none [@media(pointer:coarse)]:opacity-100 ${
-              active ? 'opacity-100 text-white' : 'opacity-0 group-hover:opacity-100'
+            tabIndex={touch && !showVoice ? -1 : undefined}
+            className={`flex size-6 shrink-0 items-center justify-center rounded-full text-white/50 transition-all duration-200 hover:bg-white/10 hover:text-white focus-visible:opacity-100 focus-visible:outline-none ${voiceVisibility} ${
+              active ? 'text-white' : ''
             }`}
           >
             <VoiceIcon
@@ -133,6 +197,8 @@ function Message({ m, now, voice, onVoice }) {
 export default function LoungeChat() {
   const chat = useLoungeChat()
   const xana = useXana()
+  const [touch] = useState(() => isTouchDevice())
+  const [revealedId, setRevealedId] = useState(null) // mobile: the message whose speaker is showing
   const [name, setName] = useState(() => getStoredName())
   const [editingName, setEditingName] = useState(() => !getStoredName())
   const [nameDraft, setNameDraft] = useState(() => getStoredName())
@@ -152,6 +218,17 @@ export default function LoungeChat() {
     const id = setInterval(() => setNow(Date.now()), 30000)
     return () => clearInterval(id)
   }, [])
+
+  // Mobile: tap anywhere (except on the speaker itself) to hide the speaker again
+  useEffect(() => {
+    if (!touch || revealedId == null) return
+    const hide = (e) => {
+      if (e.target.closest?.('[data-voice-btn]')) return
+      setRevealedId(null)
+    }
+    document.addEventListener('pointerdown', hide)
+    return () => document.removeEventListener('pointerdown', hide)
+  }, [touch, revealedId])
 
   // A saved name that is reserved (and this visitor is not the owner) has to be replaced
   useEffect(() => {
@@ -277,7 +354,7 @@ export default function LoungeChat() {
             : '')
 
   return (
-      <div className="flex h-[min(calc(100dvh-10rem),31rem)] w-full flex-col sm:h-[min(calc(100dvh-7rem),38rem)]">
+    <div className="flex h-[min(calc(100dvh-10rem),31rem)] w-full flex-col sm:h-[min(calc(100dvh-7rem),38rem)]">
       {/* Header: total message count */}
       <p className="flex items-center gap-2 text-xs text-white/45">
         <MessageSquare className="size-3.5" aria-hidden="true" />
@@ -288,7 +365,7 @@ export default function LoungeChat() {
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className="mt-4 flex-1 overflow-y-auto pr-1 [mask-image:linear-gradient(to_bottom,transparent,black_2rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="mt-4 flex-1 overflow-y-auto pr-1 [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_2rem,black_calc(100%_-_1.25rem),transparent)] [mask-image:linear-gradient(to_bottom,transparent,black_2rem,black_calc(100%_-_1.25rem),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {!supabase ? (
           <p className="pt-10 text-sm text-white/45">the lounge is offline right now.</p>
@@ -307,7 +384,7 @@ export default function LoungeChat() {
             {chat.messages.length === 0 && (
               <p className="pt-10 text-sm text-white/45">no messages yet. say hi.</p>
             )}
-            <ul className="space-y-3.5 pt-2 pb-2 sm:space-y-4">
+            <ul className="space-y-3.5 pt-2 pb-5 sm:space-y-4">
               {chat.messages.map((m) => (
                 <Message
                   key={m.id}
@@ -315,6 +392,9 @@ export default function LoungeChat() {
                   now={now}
                   voice={xana.activeId === m.id ? xana.status : 'idle'}
                   onVoice={() => xana.speak(m.id, m.body)}
+                  touch={touch}
+                  revealed={revealedId === m.id}
+                  onReveal={() => setRevealedId(m.id)}
                 />
               ))}
             </ul>
@@ -323,7 +403,7 @@ export default function LoungeChat() {
       </div>
 
       {/* Owner login, name prompt (first visit) or message box */}
-      <div className="mt-5 sm:mt-6">
+      <div className="mt-2 sm:mt-3">
         {ownerMode ? (
           <form onSubmit={submitOwner}>
             <p className="text-sm text-white/60">owner password</p>
