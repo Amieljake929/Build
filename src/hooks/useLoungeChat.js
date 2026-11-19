@@ -6,6 +6,9 @@ import { getGeo } from '../lib/geo'
 
 const PAGE = 50
 
+// Small delay so a quick mount/unmount (page switch, StrictMode) never opens a socket
+const CONNECT_DELAY_MS = 300
+
 // The owner account you created in Supabase (Authentication -> Users)
 const OWNER_EMAIL = 'amieljakebaril@gmail.com'
 
@@ -94,40 +97,53 @@ export default function useLoungeChat() {
       return
     }
     let cancelled = false
+    let channel = null
 
     async function load() {
-      const [latest, count] = await Promise.all([
-        supabase.from('messages').select('*').order('id', { ascending: false }).limit(PAGE),
-        supabase.from('messages').select('*', { count: 'exact', head: true }),
-      ])
-      if (cancelled) return
+      try {
+        const [latest, count] = await Promise.all([
+          supabase.from('messages').select('*').order('id', { ascending: false }).limit(PAGE),
+          supabase.from('messages').select('*', { count: 'exact', head: true }),
+        ])
+        if (cancelled) return
 
-      if (latest.error) {
-        setError("couldn't load messages")
-      } else {
-        const rows = [...(latest.data ?? [])].reverse()
-        rows.forEach((m) => seen.current.add(m.id))
-        setMessages((prev) => {
-          const extra = prev.filter((m) => !rows.some((r) => r.id === m.id))
-          return [...rows, ...extra]
-        })
-        setHasMore(rows.length === PAGE)
+        if (latest.error) {
+          setError("couldn't load messages")
+        } else {
+          const rows = [...(latest.data ?? [])].reverse()
+          rows.forEach((m) => seen.current.add(m.id))
+          setMessages((prev) => {
+            const extra = prev.filter((m) => !rows.some((r) => r.id === m.id))
+            return [...rows, ...extra]
+          })
+          setHasMore(rows.length === PAGE)
+        }
+        setTotal(count.count ?? latest.data?.length ?? 0)
+      } catch {
+        if (!cancelled) setError("couldn't load messages")
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setTotal(count.count ?? latest.data?.length ?? 0)
-      setLoading(false)
     }
     load()
 
-    const channel = supabase
-      .channel('lounge-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) =>
-        addMessage(payload.new),
-      )
-      .subscribe()
+    // Open the realtime channel after a short delay (see CONNECT_DELAY_MS)
+    const timer = setTimeout(() => {
+      if (cancelled) return
+      channel = supabase
+        .channel('lounge-messages')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => addMessage(payload.new),
+        )
+        .subscribe()
+    }, CONNECT_DELAY_MS)
 
     return () => {
       cancelled = true
-      supabase.removeChannel(channel)
+      clearTimeout(timer)
+      if (channel) supabase.removeChannel(channel)
     }
   }, [addMessage])
 
