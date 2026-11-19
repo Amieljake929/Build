@@ -6,12 +6,15 @@ const API_URL = 'https://api.spotify.com/v1'
 
 let cached = { token: '', expiresAt: 0 }
 
+// Removes accidental spaces, line breaks or quotes around a pasted value
+const clean = (v) => (v || '').trim().replace(/^["']|["']$/g, '')
+
 async function getAccessToken() {
   if (cached.token && Date.now() < cached.expiresAt - 60_000) return cached.token
 
-  const id = process.env.SPOTIFY_CLIENT_ID
-  const secret = process.env.SPOTIFY_CLIENT_SECRET
-  const refresh = process.env.SPOTIFY_REFRESH_TOKEN
+  const id = clean(process.env.SPOTIFY_CLIENT_ID)
+  const secret = clean(process.env.SPOTIFY_CLIENT_SECRET)
+  const refresh = clean(process.env.SPOTIFY_REFRESH_TOKEN)
   if (!id || !secret || !refresh) throw new Error('Missing Spotify environment variables')
 
   const res = await fetch(TOKEN_URL, {
@@ -22,7 +25,13 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refresh }),
   })
-  if (!res.ok) throw new Error(`Spotify token request failed (${res.status})`)
+  if (!res.ok) {
+    // Spotify's reason (for example invalid_client or invalid_grant) is safe to log
+    const body = await res.json().catch(() => ({}))
+    throw new Error(
+      `Spotify token request failed (${res.status}): ${body.error || ''} ${body.error_description || ''}`.trim(),
+    )
+  }
 
   const data = await res.json()
   cached = { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 }
@@ -65,19 +74,22 @@ export function shapeTrack(t) {
 // ---- Fallback snapshot (Supabase). Optional: skipped if the keys are missing ----
 
 function supabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const url = clean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)
+  const key = clean(process.env.SUPABASE_SERVICE_ROLE_KEY)
   if (!url || !key) return null
-  return {
-    base: `${url}/rest/v1/tunes_snapshot`,
-    headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-  }
+
+  const headers = { apikey: key, 'Content-Type': 'application/json' }
+  // Legacy service_role keys are JWTs and also go in Authorization.
+  // New sb_secret_ keys are not JWTs, so they only go in apikey.
+  if (!key.startsWith('sb_secret_')) headers.Authorization = `Bearer ${key}`
+
+  return { base: `${url}/rest/v1/tunes_snapshot`, headers }
 }
 
 export async function saveSnapshot(id, data) {
-  const sb = supabase()
-  if (!sb) return
   try {
+    const sb = supabase()
+    if (!sb) return
     await fetch(sb.base, {
       method: 'POST',
       headers: { ...sb.headers, Prefer: 'resolution=merge-duplicates' },
@@ -89,9 +101,9 @@ export async function saveSnapshot(id, data) {
 }
 
 export async function loadSnapshot(id) {
-  const sb = supabase()
-  if (!sb) return null
   try {
+    const sb = supabase()
+    if (!sb) return null
     const res = await fetch(`${sb.base}?id=eq.${id}&select=data,updated_at`, {
       headers: sb.headers,
     })
