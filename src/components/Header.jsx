@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MessageSquare } from 'lucide-react'
+import { MessageSquare, Music } from 'lucide-react'
 import { NAV_LINKS } from '../data/site'
 import usePresence from '../hooks/usePresence'
 import PresenceBadge from './PresenceBadge'
@@ -19,10 +19,15 @@ const menuLinkClass = ({ isActive }) =>
     isActive ? 'text-fg' : 'text-muted'
   }`
 
-// The Lounge button: small lowercase text, normal letter spacing, chat icon first
-// The Lounge button: lowercase text with normal letter spacing, chat icon first
-const loungeClass =
-  'relative inline-flex items-center gap-3 py-1 text-base tracking-normal text-muted lowercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1 hover:text-fg sm:text-lg'
+// The small buttons under the divider (Global Lounge, Tunes):
+// lowercase text with normal letter spacing, icon first
+const smallButtonBase =
+  'relative inline-flex items-center gap-3 py-1 text-base tracking-normal lowercase transition-[color,translate] duration-400 ease-soft hover:translate-x-1 hover:text-fg sm:text-lg'
+
+const loungeClass = `${smallButtonBase} text-muted`
+
+// Tunes is a page link, so it turns white while you are on /tunes
+const tunesClass = ({ isActive }) => `${smallButtonBase} ${isActive ? 'text-fg' : 'text-muted'}`
 
 // Shared by the two menu-icon lines
 const lineBase =
@@ -153,7 +158,7 @@ export default function Header() {
                     ))}
                   </nav>
 
-                  {/* Below the divider: live viewer count, then the Lounge button.
+                  {/* Below the divider: live viewer count, the Lounge button, then Tunes.
                       The line is as wide as the link list above it. */}
                   <motion.div
                     className="flex flex-col items-start gap-4 self-stretch border-t border-line pt-8"
@@ -179,6 +184,15 @@ export default function Header() {
                       />
                       Global Lounge
                     </button>
+
+                    <NavLink to="/tunes" onClick={() => setOpen(false)} className={tunesClass}>
+                      <Music
+                        className="size-[1.15em] shrink-0"
+                        strokeWidth={1.5}
+                        aria-hidden="true"
+                      />
+                      Tunes
+                    </NavLink>
                   </motion.div>
                 </div>
               </motion.aside>

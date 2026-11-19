@@ -8,6 +8,7 @@ import Notes from './pages/Notes'
 import Blog from './pages/Blog'
 import Resources from './pages/Resources'
 import Reach from './pages/Reach'
+import Tunes from './pages/Tunes'
 
 export default function App() {
   const location = useLocation()
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/blog/:slug?" element={<Blog />} />
             <Route path="/resources" element={<Resources />} />
             <Route path="/reach" element={<Reach />} />
+            <Route path="/tunes" element={<Tunes />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AnimatePresence>
