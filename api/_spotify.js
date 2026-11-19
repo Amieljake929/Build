@@ -1,5 +1,6 @@
 // Shared helpers for the Spotify endpoints. The leading underscore keeps Vercel
 // from turning this file into its own /api route.
+import { createHash } from 'node:crypto'
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token'
 const API_URL = 'https://api.spotify.com/v1'
@@ -8,6 +9,9 @@ let cached = { token: '', expiresAt: 0 }
 
 // Removes accidental spaces, line breaks or quotes around a pasted value
 const clean = (v) => (v || '').trim().replace(/^["']|["']$/g, '')
+
+// Short one-way code of a value: safe to log, lets us compare against your own copy
+const fp = (v) => createHash('sha256').update(v).digest('hex').slice(0, 8)
 
 async function getAccessToken() {
   if (cached.token && Date.now() < cached.expiresAt - 60_000) return cached.token
@@ -26,10 +30,10 @@ async function getAccessToken() {
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refresh }),
   })
   if (!res.ok) {
-    // Spotify's reason (for example invalid_client or invalid_grant) is safe to log
     const body = await res.json().catch(() => ({}))
     throw new Error(
-      `Spotify token request failed (${res.status}): ${body.error || ''} ${body.error_description || ''}`.trim(),
+      `Spotify token request failed (${res.status}): ${body.error || ''} ${body.error_description || ''} ` +
+        `[id len=${id.length} fp=${fp(id)} | secret len=${secret.length} fp=${fp(secret)} | refresh len=${refresh.length} fp=${fp(refresh)}]`,
     )
   }
 
