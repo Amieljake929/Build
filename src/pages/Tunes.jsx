@@ -9,10 +9,24 @@ const FALLBACK_PROFILE = {
   name: 'Amiel',
   url: 'https://open.spotify.com',
   image: '',
-  followers: null,
 }
 
 const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
+
+// Minimal auto-hiding scrollbar for the right column: just a thin bar (no arrows),
+// hidden until the visitor scrolls. Color is #f5945c.
+const scrollCss = `
+.tunes-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.tunes-scroll[data-scrolling="true"] { scrollbar-color: #f5945c transparent; }
+@supports selector(::-webkit-scrollbar) {
+  .tunes-scroll { scrollbar-width: auto; scrollbar-color: auto; }
+  .tunes-scroll::-webkit-scrollbar { width: 6px; }
+  .tunes-scroll::-webkit-scrollbar-track { background: transparent; }
+  .tunes-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  .tunes-scroll::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 999px; transition: background-color 0.4s; }
+  .tunes-scroll[data-scrolling="true"]::-webkit-scrollbar-thumb { background-color: #f5945c; }
+}
+`
 
 // ---- Spotify's official embed player (listen-only, controlled by the visitor) ----
 
@@ -38,6 +52,23 @@ function loadSpotifyApi() {
   return apiPromise
 }
 
+// Placeholder that looks like the player (cover + text lines) while it loads
+function PlayerSkeleton({ className = '' }) {
+  return (
+    <div
+      className={`flex h-[152px] animate-pulse gap-4 rounded-[12px] bg-line/40 p-4 ${className}`}
+      aria-hidden="true"
+    >
+      <div className="size-[120px] shrink-0 rounded-lg bg-line" />
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+        <div className="h-4 w-3/4 rounded bg-line" />
+        <div className="h-3 w-1/2 rounded bg-line/80" />
+        <div className="mt-3 h-2.5 w-full rounded-full bg-line/70" />
+      </div>
+    </div>
+  )
+}
+
 // Paused by default. When the song changes, the player loads the new one, and keeps
 // playing only if the visitor was already listening.
 function SpotifyPlayer({ uri, fallbackUrl }) {
@@ -46,12 +77,18 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
   const playingRef = useRef(false)
   const uriRef = useRef(uri)
   const [failed, setFailed] = useState(false)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     const host = hostRef.current
     const mount = document.createElement('div')
     host.appendChild(mount)
+
+    // Never keep the placeholder forever, even if the "ready" event is missed
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled) setReady(true)
+    }, 5000)
 
     loadSpotifyApi()
       .then((api) => {
@@ -65,6 +102,9 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
               return
             }
             controllerRef.current = controller
+            controller.addListener('ready', () => {
+              if (!cancelled) setReady(true)
+            })
             controller.addListener('playback_update', (e) => {
               playingRef.current = !e.data.isPaused
             })
@@ -77,6 +117,7 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
 
     return () => {
       cancelled = true
+      clearTimeout(fallbackTimer)
       controllerRef.current?.destroy?.()
       controllerRef.current = null
       host.innerHTML = ''
@@ -103,13 +144,18 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     )
   }
 
-  // CHANGED: matches the embed's 12px radius and forces a light color scheme so the
-  // iframe background stays transparent (no white corners)
   return (
-    <div
-      ref={hostRef}
-      className="min-h-[152px] overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]"
-    />
+    <div className="relative min-h-[152px]">
+      <div
+        ref={hostRef}
+        className="min-h-[152px] overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]"
+      />
+      <PlayerSkeleton
+        className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${
+          ready ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+    </div>
   )
 }
 
@@ -145,11 +191,6 @@ function Profile({ profile }) {
         <span className="block truncate text-xl text-fg transition-colors duration-400 ease-soft group-hover:text-accent">
           {profile.name}
         </span>
-        {profile.followers != null && (
-          <span className="mt-1 block text-sm text-muted">
-            {profile.followers.toLocaleString()} {profile.followers === 1 ? 'follower' : 'followers'}
-          </span>
-        )}
         <span className="mt-1 block text-xs tracking-[0.08em] text-muted">Open in Spotify ↗</span>
       </span>
     </a>
@@ -197,6 +238,19 @@ const emptyText = 'Not enough listening history yet.'
 
 export default function Tunes() {
   const { top, now } = useSpotify()
+  const hideTimer = useRef(null)
+
+  useEffect(() => () => clearTimeout(hideTimer.current), [])
+
+  // Shows the scrollbar while scrolling, hides it ~0.9s after the visitor stops
+  const onScroll = (e) => {
+    const el = e.currentTarget
+    el.dataset.scrolling = 'true'
+    clearTimeout(hideTimer.current)
+    hideTimer.current = setTimeout(() => {
+      el.dataset.scrolling = 'false'
+    }, 900)
+  }
 
   const topReady = top && !top.unavailable
   const profile = topReady ? top.profile : FALLBACK_PROFILE
@@ -205,15 +259,17 @@ export default function Tunes() {
 
   return (
     <PageTransition>
-      <PageTitle>Tunes</PageTitle>
-      <p className="-mt-4 mb-10 text-sm leading-[1.7] tracking-[0.02em] text-muted">
-        What I listen to, live from my Spotify.
-      </p>
+      <style>{scrollCss}</style>
 
-      {/* CHANGED: mx-auto + max-w-[64rem] centers the whole block */}
-      <div className="mx-auto grid w-full max-w-[64rem] gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24">
-        {/* Left: profile + listen-only player */}
-        <div>
+      <PageTitle>Tunes</PageTitle>
+
+      {/* Empty spacer: same height the old subtitle used, so nothing below moves */}
+      <div className="h-[2.99rem]" aria-hidden="true" />
+
+      {/* lg:[zoom:1.1] = left/right content look like 110% browser zoom (title and menu stay 100%) */}
+      <div className="mx-auto grid w-full max-w-[64rem] gap-14 pb-16 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-24 lg:[zoom:1.1]">
+        {/* Left: profile + listen-only player (stays in place) */}
+        <div className="lg:sticky lg:top-8 lg:self-start">
           <Profile profile={profile} />
 
           <div className="mt-10 border-t border-line pt-8">
@@ -224,14 +280,13 @@ export default function Tunes() {
               {isPlaying ? 'Playing now' : 'Last played'}
             </p>
 
-            {now === null && <p className="text-sm text-muted">Loading…</p>}
+            {now === null && <PlayerSkeleton />}
 
             {track ? (
               <>
                 <SpotifyPlayer uri={track.uri} fallbackUrl={track.url} />
                 <p className="mt-3 text-xs leading-[1.7] text-muted">
-                  Press play to listen. Play and pause only affect your own browser, never my
-                  Spotify.
+                  Press play to listen. Play and pause only affect your own browser.
                 </p>
               </>
             ) : (
@@ -244,9 +299,11 @@ export default function Tunes() {
           </div>
         </div>
 
-        {/* Right: top artists and tracks */}
-        {/* CHANGED: removed max-w-2xl, added min-w-0 */}
-        <div className="flex min-w-0 flex-col gap-12">
+        {/* Right: top artists and tracks (scrolls by itself on desktop) */}
+        <div
+          onScroll={onScroll}
+          className="tunes-scroll flex min-w-0 flex-col gap-12 lg:h-[36rem] lg:self-start lg:overflow-y-auto lg:pr-4"
+        >
           {top === null && <p className="text-sm text-muted">Loading…</p>}
 
           {top?.unavailable && (
