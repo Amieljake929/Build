@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import PageTransition from '../components/PageTransition'
 import PageTitle from '../components/PageTitle'
 import useSpotify from '../hooks/useSpotify'
@@ -13,16 +14,60 @@ const FALLBACK_PROFILE = {
 
 const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
 
+// Height of the soft fade at the top and bottom of the scrolling column (desktop only)
+const FADE_SIZE = 48
+
 // On desktop the page itself is locked (no page scroll) so only the right column scrolls.
 // Applied to <html> only while Tunes is mounted. On mobile the page scrolls normally.
+//
+// .tunes-fade softly fades the top and bottom edges of the right column. The two sizes
+// (--fade-top / --fade-bottom) are set from JS while scrolling, so an edge only fades
+// when there is more content hidden past it.
 const pageCss = `
 @media (min-width: 1024px) {
   html.tunes-page,
   html.tunes-page body {
     overflow: hidden;
   }
+  .tunes-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top, 0px), #000 calc(100% - var(--fade-bottom, 0px)), transparent 100%);
+  }
 }
 `
+
+// ---- Entrance animation (same feel as the Home page, just lighter) ----
+
+const ease = [0.22, 1, 0.36, 1]
+
+// Parent: reveals its children one after another
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } },
+}
+
+// Right column starts a little after the left one
+const containerRight = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.25 } },
+}
+
+// Each block fades in, rises a little and un-blurs
+const item = {
+  hidden: { opacity: 0, y: 16, filter: 'blur(4px)' },
+  show: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.8, ease } },
+}
+
+// Lists reveal their rows one by one
+const list = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05 } },
+}
+
+const row = {
+  hidden: { opacity: 0, x: 10 },
+  show: { opacity: 1, x: 0, transition: { duration: 0.6, ease } },
+}
 
 // ---- Spotify's official embed player (listen-only, controlled by the visitor) ----
 
@@ -228,7 +273,7 @@ function Profile({ profile }) {
 
 function Row({ index, href, image, round, title, subtitle }) {
   return (
-    <li>
+    <motion.li variants={row}>
       <a href={href} {...linkProps} className="group flex items-center gap-4 border-t border-line py-3">
         <span className="w-5 shrink-0 text-xs tabular-nums text-muted">{index + 1}</span>
         <Avatar src={image} name={title} round={round} className="size-11" />
@@ -245,60 +290,137 @@ function Row({ index, href, image, round, title, subtitle }) {
           ↗
         </span>
       </a>
-    </li>
+    </motion.li>
   )
 }
 
 function ListSection({ title, label, children }) {
   return (
-    <section>
+    <motion.section variants={item}>
       <div className="mb-3 flex items-baseline justify-between gap-4">
         <h2 className="text-xl font-medium text-fg">{title}</h2>
         {label && <span className="text-xs tracking-[0.08em] text-muted">{label}</span>}
       </div>
-      <ul className="border-b border-line">{children}</ul>
-    </section>
+      <motion.ul className="border-b border-line" variants={list}>
+        {children}
+      </motion.ul>
+    </motion.section>
   )
 }
 
 const emptyText = 'Not enough listening history yet.'
+
+// Distance from the top of the document to an element, ignoring transforms
+// (so the page transition's 10px slide can't skew the measurement).
+function offsetFromTop(el) {
+  let y = 0
+  let node = el
+  while (node) {
+    y += node.offsetTop
+    node = node.offsetParent
+  }
+  return y
+}
 
 // ---- Page ----
 
 export default function Tunes() {
   const { top, now } = useSpotify()
   const gridRef = useRef(null)
-  const [gridHeight, setGridHeight] = useState(null)
+  const scrollerRef = useRef(null)
+  // Content fades in only after the page transition has finished and the font is loaded.
+  const [ready, setReady] = useState(false)
 
-  // Desktop: lock the page scroll and give the grid a fixed height that fills the rest of
-  // the screen, so everything stays steady and only the right column scrolls.
-  // Mobile: nothing is locked, the page scrolls normally.
-  useEffect(() => {
+  // Desktop: lock the page scroll and size the grid to fill the rest of the screen, so
+  // everything stays steady and only the right column scrolls. Mobile: nothing is locked.
+  //
+  // The height is worked out BEFORE the first paint (useLayoutEffect), by repeating the
+  // measurement until it settles, so the page is already in its final position when it
+  // first appears and the title never jumps.
+  useLayoutEffect(() => {
     const root = document.documentElement
     root.classList.add('tunes-page')
 
     const mq = window.matchMedia('(min-width: 1024px)')
+
     const measure = () => {
-      if (!mq.matches || !gridRef.current) {
-        setGridHeight(null)
+      const grid = gridRef.current
+      if (!grid) return
+      if (!mq.matches) {
+        grid.style.height = ''
         return
       }
-      window.scrollTo(0, 0)
-      const top = gridRef.current.getBoundingClientRect().top
-      setGridHeight(Math.max(320, Math.floor(window.innerHeight - top - 32)))
+      // Changing the height moves the grid (because of the centering), so repeat until stable
+      let last = -1
+      for (let i = 0; i < 8; i++) {
+        const next = Math.max(320, Math.floor(window.innerHeight - offsetFromTop(grid) - 32))
+        if (next === last) break
+        grid.style.height = `${next}px`
+        last = next
+      }
     }
 
+    window.scrollTo(0, 0)
     measure()
-    // Measure again after the page transition has settled
-    const settleTimer = setTimeout(measure, 800)
+
+    let alive = true
+    // Wait for the page transition (0.5s) and the font, then start the animation
+    const settled = new Promise((resolve) => setTimeout(resolve, 600))
+    const font = document.fonts?.load
+      ? Promise.race([
+          document.fonts.load('1em Geist'),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]).catch(() => {})
+      : Promise.resolve()
+
+    Promise.all([settled, font]).then(() => {
+      if (!alive) return
+      measure() // no-op if nothing changed, so nothing moves
+      setReady(true)
+    })
+
     window.addEventListener('resize', measure)
 
     return () => {
-      clearTimeout(settleTimer)
+      alive = false
       window.removeEventListener('resize', measure)
       root.classList.remove('tunes-page')
     }
   }, [])
+
+  // Soft fade on the top and bottom edges of the right column. An edge only fades when
+  // there is more content past it: the top fade grows as you scroll down, and the bottom
+  // fade shrinks to nothing when you reach the end, so the last row is never faded out.
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+
+    const update = () => {
+      const max = el.scrollHeight - el.clientHeight
+      const fadeTop = Math.min(el.scrollTop, FADE_SIZE)
+      const fadeBottom = Math.min(Math.max(max - el.scrollTop, 0), FADE_SIZE)
+      el.style.setProperty('--fade-top', `${fadeTop}px`)
+      el.style.setProperty('--fade-bottom', `${fadeBottom}px`)
+    }
+
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+
+    // Recalculate when the column or its content changes size (data loading, resize)
+    let observer
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(update)
+      observer.observe(el)
+      if (el.firstElementChild) observer.observe(el.firstElementChild)
+    }
+
+    return () => {
+      el.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+      observer?.disconnect()
+    }
+  }, [top, ready])
 
   const topReady = top && !top.unavailable
   const profile = topReady ? top.profile : FALLBACK_PROFILE
@@ -315,18 +437,23 @@ export default function Tunes() {
       <div className="h-[2.99rem]" aria-hidden="true" />
 
       {/* Zoom is applied to the inner content of each column (left 1.1, right 0.99 = 0.9 x 1.1),
-          not to the grid, so the grid's height and the right column's scrolling stay exact. */}
-      <div
+          not to the grid, so the grid's height and the right column's scrolling stay exact.
+          The grid's height is set directly on the element by the layout effect above. */}
+      <motion.div
         ref={gridRef}
-        style={gridHeight ? { height: gridHeight } : undefined}
         className="mx-auto grid w-full max-w-[70rem] gap-14 pb-16 lg:grid-cols-[minmax(0,26.4rem)_minmax(0,1fr)] lg:gap-[6.6rem] lg:overflow-hidden lg:pb-0"
+        variants={container}
+        initial="hidden"
+        animate={ready ? 'show' : 'hidden'}
       >
         {/* Left: profile + listen-only player (steady, never scrolls on desktop) */}
-        <div className="lg:self-start">
+        <motion.div className="lg:self-start" variants={container}>
           <div className="lg:[zoom:1.1]">
-            <Profile profile={profile} />
+            <motion.div variants={item}>
+              <Profile profile={profile} />
+            </motion.div>
 
-            <div className="mt-6">
+            <motion.div className="mt-6" variants={item}>
               <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted">
                 <span
                   className={`size-1.5 rounded-full ${isPlaying ? 'animate-pulse bg-accent' : 'bg-muted'}`}
@@ -350,19 +477,30 @@ export default function Tunes() {
                   </p>
                 )
               )}
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Right: the ONLY scrollable area on desktop, with the scrollbar hidden */}
-        <div className="min-w-0 overscroll-contain [scrollbar-width:none] lg:h-full lg:overflow-y-auto [&::-webkit-scrollbar]:hidden">
-          <div className="flex flex-col gap-12 lg:pb-8 lg:[zoom:0.99]">
-            {top === null && <p className="text-sm text-muted">Loading…</p>}
+        {/* Right: the ONLY scrollable area on desktop, scrollbar hidden,
+            top and bottom edges softly faded (see .tunes-fade in pageCss) */}
+        <div
+          ref={scrollerRef}
+          className="tunes-fade min-w-0 overscroll-contain [scrollbar-width:none] lg:h-full lg:overflow-y-auto [&::-webkit-scrollbar]:hidden"
+        >
+          <motion.div
+            className="flex flex-col gap-12 lg:pb-8 lg:[zoom:0.99]"
+            variants={containerRight}
+          >
+            {top === null && (
+              <motion.p variants={item} className="text-sm text-muted">
+                Loading…
+              </motion.p>
+            )}
 
             {top?.unavailable && (
-              <p className="text-sm text-muted">
+              <motion.p variants={item} className="text-sm text-muted">
                 My top artists and tracks can&apos;t be loaded right now. Check back soon.
-              </p>
+              </motion.p>
             )}
 
             {topReady && (
@@ -394,7 +532,7 @@ export default function Tunes() {
                 </ListSection>
 
                 {top.stale && (
-                  <p className="text-xs text-muted">
+                  <motion.p variants={item} className="text-xs text-muted">
                     Showing a saved copy from{' '}
                     {new Date(top.updatedAt).toLocaleDateString(undefined, {
                       month: 'short',
@@ -402,13 +540,13 @@ export default function Tunes() {
                       year: 'numeric',
                     })}
                     .
-                  </p>
+                  </motion.p>
                 )}
               </>
             )}
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </PageTransition>
   )
 }
