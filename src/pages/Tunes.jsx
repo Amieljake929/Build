@@ -422,7 +422,7 @@ function Profile({ profile }) {
 function Row({ index, href, image, round, title, subtitle }) {
   return (
     <motion.li variants={row}>
-      <a href={href} {...linkProps} className="group flex items-center gap-4 border-t border-line py-3">
+      <a href={href} {...linkProps} className="group flex items-center gap-4 py-3">
         <span className="w-5 shrink-0 text-xs tabular-nums text-muted">{index + 1}</span>
         <Avatar src={image} name={title} round={round} className="size-11" />
         <span className="min-w-0 flex-1">
@@ -449,7 +449,7 @@ function ListSection({ title, label, children }) {
         <h2 className="text-xl font-medium text-fg">{title}</h2>
         {label && <span className="text-xs tracking-[0.08em] text-muted">{label}</span>}
       </div>
-      <motion.ul className="border-b border-line" variants={list}>
+      <motion.ul variants={list}>
         {children}
       </motion.ul>
     </motion.section>
@@ -656,7 +656,7 @@ export default function Tunes() {
               <>
                 <ListSection title="Top Artists" label={top.artists.label}>
                   {top.artists.items.length === 0 && (
-                    <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
+                    <li className="py-3 text-sm text-muted">{emptyText}</li>
                   )}
                   {top.artists.items.map((a, i) => (
                     <Row key={a.id} index={i} href={a.url} image={a.image} title={a.name} />
@@ -665,7 +665,7 @@ export default function Tunes() {
 
                 <ListSection title="Top Tracks" label={top.tracks.label}>
                   {top.tracks.items.length === 0 && (
-                    <li className="border-t border-line py-3 text-sm text-muted">{emptyText}</li>
+                    <li className="py-3 text-sm text-muted">{emptyText}</li>
                   )}
                   {top.tracks.items.map((t, i) => (
                     <Row
