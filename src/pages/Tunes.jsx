@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play, Plus } from 'lucide-react'
 import PageTransition from '../components/PageTransition'
-import PageTitle from '../components/PageTitle'
 import useSpotify from '../hooks/useSpotify'
 
 // Shown when Spotify and the saved snapshot are both unavailable.
@@ -14,6 +13,11 @@ const FALLBACK_PROFILE = {
 }
 
 const linkProps = { target: '_blank', rel: 'noopener noreferrer' }
+
+// Space above the content now that the page title is gone: first value on mobile,
+// the lg: value on desktop. Bigger numbers push everything down, smaller ones move it up
+// (for example 'h-4 lg:h-6' = higher, 'h-10 lg:h-16' = lower).
+const TOP_SPACE = 'h-6 lg:h-10'
 
 // Height of the soft fade at the top and bottom of the scrolling column (desktop only)
 const FADE_SIZE = 48
@@ -289,9 +293,9 @@ function SpotifyPlayer({ track }) {
               </a>
             </div>
 
-            {/* Bottom: title + artists, play/pause button, progress */}
+            {/* Bottom: title + artists + save link, play/pause button, progress */}
             <div>
-              <div className="flex items-end justify-between gap-4">
+              <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <a
                     href={track.url}
@@ -318,6 +322,18 @@ function SpotifyPlayer({ track }) {
                       </span>
                     ))}
                   </p>
+
+                  {/* Opens the song on Spotify, where the visitor can save it to their library */}
+                  <a
+                    href={track.url}
+                    {...linkProps}
+                    className="group/save mt-2 inline-flex items-center gap-2 text-sm text-white/90 transition-colors duration-400 ease-soft hover:text-accent"
+                  >
+                    <span className="flex size-6 items-center justify-center rounded-full border border-white/60 transition-colors duration-400 ease-soft group-hover/save:border-accent">
+                      <Plus className="size-3.5" strokeWidth={2} aria-hidden="true" />
+                    </span>
+                    Save on Spotify
+                  </a>
                 </div>
 
                 {failed ? (
@@ -480,7 +496,7 @@ export default function Tunes() {
   //
   // The height is worked out BEFORE the first paint (useLayoutEffect), by repeating the
   // measurement until it settles, so the page is already in its final position when it
-  // first appears and the title never jumps.
+  // first appears and nothing jumps.
   useLayoutEffect(() => {
     const root = document.documentElement
     root.classList.add('tunes-page')
@@ -575,10 +591,11 @@ export default function Tunes() {
     <PageTransition>
       <style>{pageCss}</style>
 
-      <PageTitle>Tunes</PageTitle>
+      {/* The visible title is gone; this hidden heading keeps the page accessible */}
+      <h1 className="sr-only">Tunes</h1>
 
-      {/* Empty spacer: same height the old subtitle used, so nothing below moves */}
-      <div className="h-[2.99rem]" aria-hidden="true" />
+      {/* Space above the content (see TOP_SPACE at the top of the file) */}
+      <div className={TOP_SPACE} aria-hidden="true" />
 
       {/* Zoom is applied to the inner content of each column (left 1.1, right 0.99 = 0.9 x 1.1),
           not to the grid, so the grid's height and the right column's scrolling stay exact.
