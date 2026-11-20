@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Pause, Play, Plus } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import PageTransition from '../components/PageTransition'
 import useSpotify from '../hooks/useSpotify'
 
@@ -293,9 +293,9 @@ function SpotifyPlayer({ track }) {
               </a>
             </div>
 
-            {/* Bottom: title + artists + save link, play/pause button, progress */}
+            {/* Bottom: title + artists, play/pause button, progress */}
             <div>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-end justify-between gap-4">
                 <div className="min-w-0">
                   <a
                     href={track.url}
@@ -322,18 +322,6 @@ function SpotifyPlayer({ track }) {
                       </span>
                     ))}
                   </p>
-
-                  {/* Opens the song on Spotify, where the visitor can save it to their library */}
-                  <a
-                    href={track.url}
-                    {...linkProps}
-                    className="group/save mt-2 inline-flex items-center gap-2 text-sm text-white/90 transition-colors duration-400 ease-soft hover:text-accent"
-                  >
-                    <span className="flex size-6 items-center justify-center rounded-full border border-white/60 transition-colors duration-400 ease-soft group-hover/save:border-accent">
-                      <Plus className="size-3.5" strokeWidth={2} aria-hidden="true" />
-                    </span>
-                    Save on Spotify
-                  </a>
                 </div>
 
                 {failed ? (
