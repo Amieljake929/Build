@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { Pause, Play } from 'lucide-react'
 import PageTransition from '../components/PageTransition'
 import PageTitle from '../components/PageTitle'
 import useSpotify from '../hooks/useSpotify'
@@ -69,7 +70,8 @@ const row = {
   show: { opacity: 1, x: 0, transition: { duration: 0.6, ease } },
 }
 
-// ---- Spotify's official embed player (listen-only, controlled by the visitor) ----
+// ---- Spotify's official embed player ----
+// It plays the audio, hidden behind our own card. Our buttons control it.
 
 let apiPromise
 function loadSpotifyApi() {
@@ -93,41 +95,73 @@ function loadSpotifyApi() {
   return apiPromise
 }
 
-// Placeholder that looks like the player (cover + text lines) while it loads
+// Height of the player card (px). Change this to make the card taller or shorter.
+const CARD_HEIGHT = 200
+
+// Dark scrim over the album art so the white text stays readable on any cover.
+// Make the numbers bigger for a darker card, smaller to show more of the artwork.
+const SCRIM =
+  'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.2) 100%)'
+
+// Placeholder that looks like the player card while the first song is loading
 function PlayerSkeleton({ className = '' }) {
   return (
     <div
-      className={`flex h-[152px] animate-pulse gap-4 rounded-[12px] bg-line/40 p-4 ${className}`}
+      className={`flex animate-pulse flex-col justify-end gap-3 rounded-[14px] bg-line/40 p-4 ${className}`}
+      style={{ height: CARD_HEIGHT }}
       aria-hidden="true"
     >
-      <div className="size-[120px] shrink-0 rounded-lg bg-line" />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
-        <div className="h-4 w-3/4 rounded bg-line" />
-        <div className="h-3 w-1/2 rounded bg-line/80" />
-        <div className="mt-3 h-2.5 w-full rounded-full bg-line/70" />
-      </div>
+      <div className="h-4 w-2/3 rounded bg-line" />
+      <div className="h-3 w-1/3 rounded bg-line/80" />
+      <div className="mt-2 h-1 w-full rounded-full bg-line/70" />
     </div>
   )
 }
 
-// Paused by default. When the song changes, the player loads the new one, and keeps
-// playing only if the visitor was already listening.
+function formatTime(ms) {
+  const total = Math.max(0, Math.floor((ms || 0) / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+// Album art as the card background. It fades in once it has loaded, and each new
+// song gets its own fresh image (the parent gives it a key).
+// To change the look: blur-[2px] -> blur-0 for a sharp cover, or blur-xl for a dreamy one.
+function Cover({ src }) {
+  const [loaded, setLoaded] = useState(false)
+  if (!src) return null
+  return (
+    <img
+      src={src}
+      alt=""
+      ref={(el) => {
+        if (el?.complete && el.naturalWidth) setLoaded(true)
+      }}
+      onLoad={() => setLoaded(true)}
+      className={`absolute inset-0 size-full scale-105 object-cover blur-[2px] transition-opacity duration-700 ease-out ${
+        loaded ? 'opacity-100' : 'opacity-0'
+      }`}
+    />
+  )
+}
+
+// Paused by default. The visitor presses play/pause on our card, which controls the hidden
+// Spotify player. When the song changes, the new one is loaded, and keeps playing only if
+// the visitor was already listening.
 //
-// Loading is sequential so the placeholder and the real player never overlap:
-//   1. placeholder is shown, the real player is invisible (but loading underneath)
-//   2. player is ready -> short wait so the cover art can paint
-//   3. placeholder fades out completely
-//   4. real player fades in, placeholder is removed from the DOM
-function SpotifyPlayer({ uri, fallbackUrl }) {
+// Safety net: some phones (mostly iPhone/Safari) refuse to start audio when the button is
+// outside Spotify's own player. If nothing starts within a few seconds of pressing play,
+// the real Spotify player is shown instead so the visitor can press play there.
+function SpotifyPlayer({ track }) {
   const hostRef = useRef(null)
   const controllerRef = useRef(null)
   const playingRef = useRef(false)
-  const uriRef = useRef(uri)
+  const uriRef = useRef(track.uri)
+  const checkRef = useRef(null)
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
-  const [skeletonFading, setSkeletonFading] = useState(false)
-  const [showPlayer, setShowPlayer] = useState(false)
-  const [skeletonGone, setSkeletonGone] = useState(false)
+  const [paused, setPaused] = useState(true)
+  const [showEmbed, setShowEmbed] = useState(false)
+  const [progress, setProgress] = useState({ position: 0, duration: 0 })
 
   useEffect(() => {
     let cancelled = false
@@ -135,10 +169,10 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
     const mount = document.createElement('div')
     host.appendChild(mount)
 
-    // Never keep the placeholder forever, even if the "ready" event is missed
-    const fallbackTimer = setTimeout(() => {
+    // Never keep the button disabled forever, even if the "ready" event is missed
+    const readyTimer = setTimeout(() => {
       if (!cancelled) setReady(true)
-    }, 4000)
+    }, 3000)
 
     loadSpotifyApi()
       .then((api) => {
@@ -156,11 +190,11 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
               if (!cancelled) setReady(true)
             })
             controller.addListener('playback_update', (e) => {
-              playingRef.current = !e.data.isPaused
-            })
-            // Also react to the iframe's own load event (helps on slow mobile networks)
-            host.querySelector('iframe')?.addEventListener('load', () => {
-              if (!cancelled) setReady(true)
+              if (cancelled) return
+              const { isPaused, position, duration } = e.data
+              playingRef.current = !isPaused
+              setPaused(Boolean(isPaused))
+              setProgress({ position: position || 0, duration: duration || 0 })
             })
           },
         )
@@ -171,63 +205,173 @@ function SpotifyPlayer({ uri, fallbackUrl }) {
 
     return () => {
       cancelled = true
-      clearTimeout(fallbackTimer)
+      clearTimeout(readyTimer)
+      clearTimeout(checkRef.current)
       controllerRef.current?.destroy?.()
       controllerRef.current = null
       host.innerHTML = ''
     }
   }, [])
 
-  // Once the player is ready: wait a moment (cover art paints), fade the placeholder
-  // out fully, THEN fade the player in and remove the placeholder.
+  // Song changed on my Spotify: load it, and keep playing only if the visitor was listening
   useEffect(() => {
-    if (!ready) return
-    const t1 = setTimeout(() => setSkeletonFading(true), 500)
-    const t2 = setTimeout(() => setShowPlayer(true), 720)
-    const t3 = setTimeout(() => setSkeletonGone(true), 1100)
-    return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
-    }
-  }, [ready])
-
-  useEffect(() => {
-    uriRef.current = uri
+    uriRef.current = track.uri
     const controller = controllerRef.current
     if (!controller) return
-    controller.loadUri(uri)
+    controller.loadUri(track.uri)
+    setProgress({ position: 0, duration: 0 })
     if (playingRef.current) setTimeout(() => controller.play(), 400)
-  }, [uri])
+  }, [track.uri])
 
-  if (failed) {
-    return (
-      <a
-        href={fallbackUrl}
-        {...linkProps}
-        className="text-sm text-muted transition-colors duration-400 ease-soft hover:text-accent"
-      >
-        Open this song on Spotify ↗
-      </a>
-    )
+  const handleToggle = () => {
+    const controller = controllerRef.current
+    if (!controller) return
+    const wasPaused = !playingRef.current
+    controller.togglePlay()
+
+    clearTimeout(checkRef.current)
+    if (wasPaused) {
+      // If the phone blocked it, show the real Spotify player
+      checkRef.current = setTimeout(() => {
+        if (!playingRef.current) setShowEmbed(true)
+      }, 2500)
+    }
   }
 
+  const isPreview = progress.duration > 0 && progress.duration <= 31000
+  const percent = progress.duration
+    ? Math.min(100, (progress.position / progress.duration) * 100)
+    : 0
+
+  const buttonClass =
+    'flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-black transition-[transform,opacity] duration-300 ease-soft hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 disabled:hover:scale-100'
+
   return (
-    <div className="relative h-[152px] w-full">
-      {/* Real player: always in the DOM so it can load, invisible until it's time to show it */}
+    <div
+      className="relative w-full"
+      style={{ height: showEmbed ? 152 : CARD_HEIGHT }}
+    >
+      {/* The real Spotify player. It is always here (it plays the audio), but invisible
+          and untouchable unless the safety net above had to show it. */}
       <div
         ref={hostRef}
-        className={`absolute inset-0 overflow-hidden rounded-[12px] transition-opacity duration-300 ease-out [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light] ${
-          showPlayer ? 'opacity-100' : 'pointer-events-none opacity-0'
-        }`}
+        inert={!showEmbed}
+        aria-hidden={!showEmbed}
+        className={
+          showEmbed
+            ? 'absolute inset-0 overflow-hidden rounded-[12px] [color-scheme:light] [&_iframe]:block [&_iframe]:rounded-[12px] [&_iframe]:[color-scheme:light]'
+            : 'pointer-events-none absolute inset-x-0 top-0 h-[152px] overflow-hidden opacity-0 [color-scheme:light]'
+        }
       />
-      {/* Placeholder: sits on top, fades out completely before the player fades in */}
-      {!skeletonGone && (
-        <PlayerSkeleton
-          className={`pointer-events-none absolute inset-0 w-full transition-opacity duration-200 ease-out ${
-            skeletonFading ? 'opacity-0' : 'opacity-100'
-          }`}
-        />
+
+      {/* Our own player card: album art as the background, everything else on top */}
+      {!showEmbed && (
+        <div className="relative h-full w-full overflow-hidden rounded-[14px] bg-line">
+          <Cover key={track.image} src={track.image} />
+          <div className="absolute inset-0" style={{ background: SCRIM }} />
+
+          <div className="relative flex h-full flex-col justify-between p-4 text-white">
+            {/* Top row: preview badge (left), link to the real Spotify page (right) */}
+            <div className="flex items-start justify-between gap-3">
+              <span
+                className={`rounded-full bg-black/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] backdrop-blur-sm ${
+                  isPreview ? '' : 'invisible'
+                }`}
+              >
+                Preview
+              </span>
+              <a
+                href={track.url}
+                {...linkProps}
+                className="text-xs tracking-[0.08em] text-white/80 transition-colors duration-400 ease-soft hover:text-accent"
+              >
+                Open in Spotify ↗
+              </a>
+            </div>
+
+            {/* Bottom: title + artists, play/pause button, progress */}
+            <div>
+              <div className="flex items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <a
+                    href={track.url}
+                    {...linkProps}
+                    className="block truncate text-lg font-medium leading-tight transition-colors duration-400 ease-soft hover:text-accent"
+                  >
+                    {track.name}
+                  </a>
+                  <p className="mt-0.5 truncate text-sm text-white/75">
+                    {track.artists.map((a, i) => (
+                      <span key={`${a.name}-${i}`}>
+                        {i > 0 && ', '}
+                        {a.url ? (
+                          <a
+                            href={a.url}
+                            {...linkProps}
+                            className="transition-colors duration-400 ease-soft hover:text-white"
+                          >
+                            {a.name}
+                          </a>
+                        ) : (
+                          a.name
+                        )}
+                      </span>
+                    ))}
+                  </p>
+                </div>
+
+                {failed ? (
+                  // Spotify's player script was blocked: the button just opens the song
+                  <a
+                    href={track.url}
+                    {...linkProps}
+                    aria-label="Open this song on Spotify"
+                    className={buttonClass}
+                  >
+                    <Play className="ml-0.5 size-5 fill-current" strokeWidth={0} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleToggle}
+                    disabled={!ready}
+                    aria-label={paused ? 'Play' : 'Pause'}
+                    className={buttonClass}
+                  >
+                    {paused ? (
+                      <Play className="ml-0.5 size-5 fill-current" strokeWidth={0} aria-hidden="true" />
+                    ) : (
+                      <Pause className="size-5 fill-current" strokeWidth={0} aria-hidden="true" />
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {!failed && (
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="w-9 text-xs tabular-nums text-white/70">
+                    {formatTime(progress.position)}
+                  </span>
+                  <div
+                    className="h-1 flex-1 overflow-hidden rounded-full bg-white/25"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(percent)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-accent transition-[width] duration-300 ease-linear"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <span className="w-9 text-right text-xs tabular-nums text-white/70">
+                    {progress.duration ? formatTime(progress.duration) : '–:––'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -465,7 +609,7 @@ export default function Tunes() {
 
               {track ? (
                 <>
-                  <SpotifyPlayer uri={track.uri} fallbackUrl={track.url} />
+                  <SpotifyPlayer track={track} />
                   <p className="mt-3 text-xs leading-[1.7] text-muted">
                     Press play to listen. Play and pause only affect your own browser.
                   </p>
