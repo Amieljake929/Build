@@ -1,6 +1,5 @@
 // Shared helpers for the Spotify endpoints. The leading underscore keeps Vercel
 // from turning this file into its own /api route.
-import { createHash } from 'node:crypto'
 
 const TOKEN_URL = 'https://accounts.spotify.com/api/token'
 const API_URL = 'https://api.spotify.com/v1'
@@ -9,9 +8,6 @@ let cached = { token: '', expiresAt: 0 }
 
 // Removes accidental spaces, line breaks or quotes around a pasted value
 const clean = (v) => (v || '').trim().replace(/^["']|["']$/g, '')
-
-// Short one-way code of a value: safe to log, lets us compare against your own copy
-const fp = (v) => createHash('sha256').update(v).digest('hex').slice(0, 8)
 
 async function getAccessToken() {
   if (cached.token && Date.now() < cached.expiresAt - 60_000) return cached.token
@@ -30,10 +26,10 @@ async function getAccessToken() {
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refresh }),
   })
   if (!res.ok) {
+    // Spotify's reason (for example invalid_client or invalid_grant) is safe to log
     const body = await res.json().catch(() => ({}))
     throw new Error(
-      `Spotify token request failed (${res.status}): ${body.error || ''} ${body.error_description || ''} ` +
-        `[id len=${id.length} fp=${fp(id)} | secret len=${secret.length} fp=${fp(secret)} | refresh len=${refresh.length} fp=${fp(refresh)}]`,
+      `Spotify token request failed (${res.status}): ${body.error || ''} ${body.error_description || ''}`.trim(),
     )
   }
 
@@ -75,29 +71,37 @@ export function shapeTrack(t) {
   }
 }
 
-// ---- Fallback snapshot (Supabase). Optional: skipped if the keys are missing ----
+// ---- Fallback snapshot (Supabase) ----
+// Uses only your PUBLIC key plus two small database functions:
+//   get_tunes_snapshot  -> anyone can read the saved copy (it is public data anyway)
+//   save_tunes_snapshot -> only works with the TUNES_WRITE_SECRET password
+// If anything is missing, the snapshot is simply skipped and nothing breaks.
 
 function supabase() {
   const url = clean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)
-  const key = clean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+  const key = clean(
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.VITE_SUPABASE_ANON_KEY,
+  )
   if (!url || !key) return null
 
   const headers = { apikey: key, 'Content-Type': 'application/json' }
-  // Legacy service_role keys are JWTs and also go in Authorization.
-  // New sb_secret_ keys are not JWTs, so they only go in apikey.
-  if (!key.startsWith('sb_secret_')) headers.Authorization = `Bearer ${key}`
+  // New sb_publishable_ keys only go in apikey; older anon keys are JWTs and also go in Authorization
+  if (!key.startsWith('sb_')) headers.Authorization = `Bearer ${key}`
 
-  return { base: `${url}/rest/v1/tunes_snapshot`, headers }
+  return { rpc: `${url}/rest/v1/rpc`, headers }
 }
 
 export async function saveSnapshot(id, data) {
   try {
     const sb = supabase()
-    if (!sb) return
-    await fetch(sb.base, {
+    const secret = clean(process.env.TUNES_WRITE_SECRET)
+    if (!sb || !secret) return
+    await fetch(`${sb.rpc}/save_tunes_snapshot`, {
       method: 'POST',
-      headers: { ...sb.headers, Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify({ id, data, updated_at: new Date().toISOString() }),
+      headers: sb.headers,
+      body: JSON.stringify({ p_id: id, p_data: data, p_secret: secret }),
     })
   } catch {
     /* the snapshot is a bonus, never break the page for it */
@@ -108,12 +112,14 @@ export async function loadSnapshot(id) {
   try {
     const sb = supabase()
     if (!sb) return null
-    const res = await fetch(`${sb.base}?id=eq.${id}&select=data,updated_at`, {
+    const res = await fetch(`${sb.rpc}/get_tunes_snapshot`, {
+      method: 'POST',
       headers: sb.headers,
+      body: JSON.stringify({ p_id: id }),
     })
     if (!res.ok) return null
     const rows = await res.json()
-    return rows[0] || null
+    return rows?.[0] || null
   } catch {
     return null
   }
